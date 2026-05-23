@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FixZen Admin | Advanced Dashboard</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+/* Mobile touch feedback */
+button {
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+button:active {
+  transform: scale(0.96);
+  opacity: 0.9;
+}
+</style>
+</head>
+
+<body class="bg-[#f7f4ef] text-[#4b453a]">
+
+<!-- HEADER (MOBILE FIRST) -->
+<div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+  <h1 class="text-xl sm:text-3xl font-black leading-tight">
+    FIXZEN
+    <span class="block sm:inline text-xs sm:text-sm font-normal">
+      Admin · Analytics Dashboard
+    </span>
+  </h1>
+
+  <div class="flex items-center gap-3">
+    <button onclick="loadDashboard()"
+      class="px-4 py-2 bg-[#4b453a] text-white rounded-xl font-bold text-sm">
+      Refresh
+    </button>
+    <p id="lastUpdated" class="text-xs sm:text-sm text-gray-500 font-semibold">
+      Last updated: --
+    </p>
+  </div>
+</div>
+
+<!-- KPI CARDS (RESPONSIVE GRID) -->
+<div class="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 px-4">
+
+  <div class="bg-white p-4 sm:p-6 rounded-2xl shadow">
+    <p class="text-[10px] sm:text-xs text-gray-500 font-bold">TOTAL JOBS</p>
+    <h2 id="totalJobs" class="text-2xl sm:text-3xl font-black mt-2">0</h2>
+  </div>
+
+  <div class="bg-white p-4 sm:p-6 rounded-2xl shadow">
+    <p class="text-[10px] sm:text-xs text-gray-500 font-bold">PENDING JOBS</p>
+    <h2 id="pendingJobs" class="text-2xl sm:text-3xl font-black mt-2 text-yellow-600">0</h2>
+  </div>
+
+  <div class="bg-white p-4 sm:p-6 rounded-2xl shadow">
+    <p class="text-[10px] sm:text-xs text-gray-500 font-bold">COMPLETED JOBS</p>
+    <h2 id="completedJobs" class="text-2xl sm:text-3xl font-black mt-2 text-green-600">0</h2>
+  </div>
+
+  <div class="bg-white p-4 sm:p-6 rounded-2xl shadow">
+    <p class="text-[10px] sm:text-xs text-gray-500 font-bold">TOTAL REVENUE</p>
+    <p class="text-[9px] text-gray-400">Customer paid</p>
+    <h2 id="totalRevenue" class="text-2xl sm:text-3xl font-black mt-1 text-green-700">₹0</h2>
+  </div>
+
+  <div class="bg-white p-4 sm:p-6 rounded-2xl shadow">
+    <p class="text-[10px] sm:text-xs text-gray-500 font-bold">PLATFORM PROFIT</p>
+    <p class="text-[9px] text-gray-400">15.7% commission</p>
+    <h2 id="platformProfit" class="text-2xl sm:text-3xl font-black mt-1 text-amber-600">₹0</h2>
+  </div>
+
+  <div class="bg-white p-4 sm:p-6 rounded-2xl shadow">
+    <p class="text-[10px] sm:text-xs text-gray-500 font-bold">TECH PAYOUTS</p>
+    <p class="text-[9px] text-gray-400">84.3% to technicians</p>
+    <h2 id="techPayouts" class="text-2xl sm:text-3xl font-black mt-1 text-blue-600">₹0</h2>
+  </div>
+
+</div>
+
+<!-- SECONDARY ROW -->
+<div class="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-4 px-4 mt-4">
+  <div class="bg-white p-4 rounded-2xl shadow">
+    <p class="text-[10px] text-gray-500 font-bold">ACTIVE TECHNICIANS</p>
+    <h2 id="activeTechs" class="text-2xl font-black mt-2 text-blue-600">0</h2>
+  </div>
+  <div class="bg-white p-4 rounded-2xl shadow">
+    <p class="text-[10px] text-gray-500 font-bold">JOBS TODAY</p>
+    <h2 id="jobsToday" class="text-2xl font-black mt-2 text-purple-600">0</h2>
+  </div>
+  <div class="bg-white p-4 rounded-2xl shadow">
+    <p class="text-[10px] text-gray-500 font-bold">REVENUE TODAY</p>
+    <h2 id="revenueToday" class="text-2xl font-black mt-2 text-green-600">₹0</h2>
+  </div>
+  <div class="bg-white p-4 rounded-2xl shadow">
+    <p class="text-[10px] text-gray-500 font-bold">AVG JOB VALUE</p>
+    <h2 id="avgJobValue" class="text-2xl font-black mt-2 text-gray-700">₹0</h2>
+  </div>
+</div>
+
+<!-- CHARTS -->
+<div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 px-4 mt-6 sm:mt-10">
+
+  <div class="bg-white p-4 sm:p-6 rounded-3xl shadow">
+    <h2 class="text-lg sm:text-xl font-black mb-4">
+      Daily Revenue (Last 7 Days)
+    </h2>
+    <div class="h-[260px] sm:h-[350px]">
+      <canvas id="revenueChart"></canvas>
+    </div>
+  </div>
+
+  <div class="bg-white p-4 sm:p-6 rounded-3xl shadow">
+    <h2 class="text-lg sm:text-xl font-black mb-4">
+      Service Category Demand
+    </h2>
+    <div class="h-[260px] sm:h-[350px]">
+      <canvas id="categoryChart"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- LEADERBOARD + RECENT JOBS -->
+<div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 px-4 mt-6 sm:mt-10">
+
+  <!-- LEADERBOARD -->
+  <div class="bg-white rounded-3xl shadow p-4 sm:p-6">
+    <h2 class="text-lg sm:text-xl font-black mb-4">
+      Technician Leaderboard (Completed Jobs)
+    </h2>
+    <div id="leaderboard" class="space-y-3"></div>
+  </div>
+
+  <!-- RECENT JOBS (SCROLLABLE FOR MOBILE) -->
+  <div class="bg-white rounded-3xl shadow overflow-x-auto">
+    <div class="p-4 sm:p-6 border-b">
+      <h2 class="text-lg sm:text-xl font-black">
+        Recent Jobs (Live Feed)
+      </h2>
+    </div>
+
+    <table class="w-full min-w-[500px]">
+      <thead class="bg-gray-50 text-[10px] sm:text-xs text-gray-500">
+        <tr>
+          <th class="p-2 sm:p-4 text-left">SERVICE</th>
+          <th class="p-2 sm:p-4 text-center">STATUS</th>
+          <th class="p-2 sm:p-4 text-center">PRICE</th>
+          <th class="p-2 sm:p-4 text-center">TECH GETS</th>
+          <th class="p-2 sm:p-4 text-center">PROFIT</th>
+          <th class="p-2 sm:p-4 text-center">DATE</th>
+        </tr>
+      </thead>
+      <tbody id="recentJobs"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = "https://kzxdxnxgouthsywbsnvl.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6eGR4bnhnb3V0aHN5d2JzbnZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMTczMzIsImV4cCI6MjA4MTg5MzMzMn0.nqzn89vmTFKVNuZPHfGRxdTg6UHT6GMud238rr49qag";
+  
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let revenueChart = null;
+let categoryChart = null;
+let isLoading = false;
+
+const COMMISSION = 0.157; // 15.7% platform commission
+
+function getServicePrice(job) {
+  // Use actual service price stored from service.html
+  return Number(job.discounted_price || job.original_price || 0);
+}
+
+function getPlatformProfit(job) {
+  return Math.round(getServicePrice(job) * COMMISSION);
+}
+
+function getTechPayout(job) {
+  return Math.round(getServicePrice(job) * (1 - COMMISSION));
+}
+
+async function loadDashboard() {
+  if (isLoading) return;
+  isLoading = true;
+
+  try {
+    const { data: jobs, error } = await sb
+      .from("jobs")
+      .select("id, status, category, original_price, discounted_price, technician_fee, created_at, completed_at, tech_id");
+
+    const { data: techs } = await sb
+      .from("technicians")
+      .select("id, name, status");
+
+    if (error) {
+      console.error(error);
+      isLoading = false;
+      return;
+    }
+
+    const totalJobs = jobs.length;
+    const completedJobsList = jobs.filter(j => j.status === "completed");
+    const completedJobs = completedJobsList.length;
+    const pendingJobs = jobs.filter(j =>
+      j.status === "pending" || j.status === "assigned" || j.status === "in_progress"
+    ).length;
+
+    // Correct financial calculations
+    const totalRevenue = completedJobsList.reduce((sum, j) => sum + getServicePrice(j), 0);
+    const totalPlatformProfit = completedJobsList.reduce((sum, j) => sum + getPlatformProfit(j), 0);
+    const totalTechPayouts = completedJobsList.reduce((sum, j) => sum + getTechPayout(j), 0);
+
+    const activeTechs = techs.filter(t => t.status === "approved").length;
+
+    const today = new Date().toISOString().split("T")[0];
+    const jobsToday = jobs.filter(j => j.created_at?.startsWith(today)).length;
+    const revenueToday = jobs
+      .filter(j => j.status === "completed" && j.completed_at?.startsWith(today))
+      .reduce((sum, j) => sum + getServicePrice(j), 0);
+    const avgJobValue = completedJobs > 0 ? Math.round(totalRevenue / completedJobs) : 0;
+
+    document.getElementById("totalJobs").innerText = totalJobs;
+    document.getElementById("completedJobs").innerText = completedJobs;
+    document.getElementById("pendingJobs").innerText = pendingJobs;
+    document.getElementById("totalRevenue").innerText = "₹" + totalRevenue.toLocaleString('en-IN');
+    document.getElementById("platformProfit").innerText = "₹" + totalPlatformProfit.toLocaleString('en-IN');
+    document.getElementById("techPayouts").innerText = "₹" + totalTechPayouts.toLocaleString('en-IN');
+    document.getElementById("activeTechs").innerText = activeTechs;
+    document.getElementById("jobsToday").innerText = jobsToday;
+    document.getElementById("revenueToday").innerText = "₹" + revenueToday.toLocaleString('en-IN');
+    document.getElementById("avgJobValue").innerText = "₹" + avgJobValue.toLocaleString('en-IN');
+
+    // Revenue chart — based on actual service price
+    const revenueMap = {};
+    jobs.forEach(j => {
+      if (j.status === "completed" && j.created_at) {
+        const date = j.created_at.split("T")[0];
+        revenueMap[date] = (revenueMap[date] || 0) + getServicePrice(j);
+      }
+    });
+
+    const labels = Object.keys(revenueMap).sort().slice(-7);
+    const dataVals = labels.map(d => revenueMap[d]);
+
+    if (revenueChart) revenueChart.destroy();
+    revenueChart = new Chart(document.getElementById("revenueChart"), {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: "Revenue (₹)",
+          data: dataVals,
+          borderColor: "#16a34a",
+          backgroundColor: "rgba(22,163,74,0.08)",
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: "#16a34a"
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { callback: v => "₹" + v } } }
+      }
+    });
+
+    const categoryMap = {};
+    jobs.forEach(j => {
+      if (!j.category) return;
+      categoryMap[j.category] = (categoryMap[j.category] || 0) + 1;
+    });
+
+    if (categoryChart) categoryChart.destroy();
+    categoryChart = new Chart(document.getElementById("categoryChart"), {
+      type: "doughnut",
+      data: {
+        labels: Object.keys(categoryMap),
+        datasets: [{ data: Object.values(categoryMap), hoverOffset: 6 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // Leaderboard by completed jobs
+    const leaderboardMap = {};
+    jobs.forEach(j => {
+      if (j.status === "completed" && j.tech_id) {
+        leaderboardMap[j.tech_id] = (leaderboardMap[j.tech_id] || 0) + 1;
+      }
+    });
+
+    const sorted = Object.entries(leaderboardMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const lb = document.getElementById("leaderboard");
+    lb.innerHTML = "";
+
+    if (sorted.length === 0) {
+      lb.innerHTML = `<p class="text-gray-500 font-bold">No completed jobs yet</p>`;
+    } else {
+      sorted.forEach(([id, count], i) => {
+        const tech = techs.find(t => t.id === id);
+        lb.innerHTML += `
+          <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+            <span class="font-bold text-sm">#${i+1} ${tech?.name || "Unknown"}</span>
+            <span class="font-black text-green-700">${count} Jobs</span>
+          </div>`;
+      });
+    }
+
+    // Recent jobs table with full price breakdown
+    const recent = jobs
+      .filter(j => j.created_at)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 8);
+
+    const tbody = document.getElementById("recentJobs");
+    tbody.innerHTML = "";
+    recent.forEach(job => {
+      const price = getServicePrice(job);
+      const techPays = getTechPayout(job);
+      const profit = getPlatformProfit(job);
+      const isCompleted = job.status === "completed";
+      tbody.innerHTML += `
+        <tr class="border-t text-xs sm:text-sm">
+          <td class="p-2 sm:p-4 font-bold">${job.category || "N/A"}</td>
+          <td class="p-2 sm:p-4 text-center">${job.status}</td>
+          <td class="p-2 sm:p-4 text-center font-bold text-green-700">${isCompleted ? "₹" + price.toLocaleString('en-IN') : "—"}</td>
+          <td class="p-2 sm:p-4 text-center font-bold text-blue-600">${isCompleted ? "₹" + techPays.toLocaleString('en-IN') : "—"}</td>
+          <td class="p-2 sm:p-4 text-center font-bold text-amber-600">${isCompleted ? "₹" + profit.toLocaleString('en-IN') : "—"}</td>
+          <td class="p-2 sm:p-4 text-center text-xs text-gray-500">
+            ${new Date(job.created_at).toLocaleDateString('en-IN')}
+          </td>
+        </tr>`;
+    });
+
+    document.getElementById("lastUpdated").innerText =
+      "Last updated: " + new Date().toLocaleTimeString();
+
+  } catch (err) {
+    console.error("Dashboard Crash:", err);
+  }
+
+  isLoading = false;
+}
+
+loadDashboard();
+setInterval(loadDashboard, 30000);
+</script>
+
+</body>
+</html>
