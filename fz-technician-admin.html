@@ -85,7 +85,7 @@
         font-size: 11px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;
     }
     .badge.pending { background: #FEF3C7; color: #B45309; }
-    .badge.active { background: #D1FAE5; color: #047857; }
+    .badge.approved { background: #D1FAE5; color: #047857; }
     .badge.rejected { background: #FEE2E2; color: #B91C1C; }
     .qr-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; }
     .qr-row canvas { border-radius: 8px; border: 1px solid #E8E2D8; }
@@ -93,6 +93,19 @@
     .card-actions .btn { flex: 1; padding: 9px; font-size: 13px; }
     .status-select {
         font-size: 12px; padding: 6px 8px; border-radius: 8px; border: 2px solid #E8E2D8; background: #FAFAFA;
+    }
+    .verify-block {
+        background: #FAFAFA; border: 1px solid #E8E2D8; border-radius: 12px;
+        padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .verify-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+    .verify-label { color: #8B8580; }
+    .verify-value { font-weight: 600; color: #1A1A1A; font-family: monospace; }
+    .verify-value.editable { cursor: pointer; color: #B58B5B; border-bottom: 1px dashed #B58B5B; }
+    .verify-value.editable:hover { color: #9a764d; }
+    .pan-input {
+        font-family: monospace; text-transform: uppercase; font-size: 13px;
+        padding: 4px 8px; border: 2px solid #B58B5B; border-radius: 6px; width: 130px; outline: none;
     }
 
     .login-wrap {
@@ -156,7 +169,7 @@
                     <select class="filter-select" x-model="statusFilter">
                         <option value="all">All statuses</option>
                         <option value="pending">Pending</option>
-                        <option value="active">Active</option>
+                        <option value="approved">Approved</option>
                         <option value="rejected">Rejected</option>
                     </select>
                     <button class="btn btn-outline" @click="loadTechnicians()">↻ Refresh</button>
@@ -197,15 +210,47 @@
                                 <div><b x-text="t.category"></b> · <span x-text="(t.experience ?? '-') + ' yrs exp'"></span></div>
                                 <div>📍 <span x-text="t.area"></span></div>
                                 <div>📱 <span x-text="t.phone"></span></div>
+                                <div>🗓 Registered <span x-text="formatDate(t.created_at)"></span></div>
                             </div>
 
                             <div style="display:flex;align-items:center;justify-content:space-between;">
                                 <span class="badge" :class="t.status" x-text="(t.status || 'pending')"></span>
                                 <select class="status-select" :value="t.status" @change="updateStatus(t, $event.target.value)">
                                     <option value="pending">Pending</option>
-                                    <option value="active">Active</option>
+                                    <option value="approved">Approved</option>
                                     <option value="rejected">Rejected</option>
                                 </select>
+                            </div>
+
+                            <div class="verify-block">
+                                <div class="verify-row">
+                                    <span class="verify-label">Aadhaar</span>
+                                    <span class="verify-value" x-text="t.aadhaar || '-'"></span>
+                                </div>
+
+                                <div class="verify-row">
+                                    <span class="verify-label">PAN</span>
+                                    <template x-if="panEditId !== t.tech_id">
+                                        <span class="verify-value editable" @click="startEditPan(t)"
+                                              x-text="t.pan_card || 'Add PAN →'"></span>
+                                    </template>
+                                    <template x-if="panEditId === t.tech_id">
+                                        <input :id="'pan-input-' + t.tech_id" class="pan-input" type="text"
+                                               maxlength="10" x-model="panEditValue"
+                                               @keyup.enter="savePan(t)" @keyup.escape="cancelEditPan()"
+                                               @blur="savePan(t)">
+                                    </template>
+                                </div>
+
+                                <div class="verify-row">
+                                    <span class="verify-label">Police verification</span>
+                                    <select class="status-select" :value="t.police_verification_status || 'pending'"
+                                            @change="updatePoliceStatus(t, $event.target.value)">
+                                        <option value="pending">Pending</option>
+                                        <option value="cleared">Cleared</option>
+                                        <option value="flagged">Flagged</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div class="qr-row">
