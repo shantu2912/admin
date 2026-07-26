@@ -10,12 +10,36 @@
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Local Service Database File -->
-    <script src="service.js"></script>
 
-    <!-- Configure Component BEFORE Alpine Loads -->
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Load Local Service Database File -->
+    <script src="../service.js"></script>
+    <script src="service.js"></script> 
+
     <script>
+        // -----------------------------------------------------------------
+        // 1. SUPABASE CONFIGURATION - PASTE YOUR KEYS HERE
+        // -----------------------------------------------------------------
+        const SUPABASE_URL = 'https://kzxdxnxgouthsywbsnvl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6eGR4bnhnb3V0aHN5d2JzbnZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMTczMzIsImV4cCI6MjA4MTg5MzMzMn0.nqzn89vmTFKVNuZPHfGRxdTg6UHT6GMud238rr49qag';
+
+
+        // Initialize Supabase Client
+        let dbClient = null;
+        if (typeof supabase !== 'undefined' && supabase.createClient) {
+            try {
+                dbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            } catch (e) {
+                console.warn('Supabase client failed to initialize:', e);
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // 2. TAILWIND & ALPINE CONTROLLER SETUP
+        // -----------------------------------------------------------------
         tailwind.config = {
             theme: {
                 extend: {
@@ -29,51 +53,44 @@
             }
         };
 
-        // Initialize Supabase Client safely
-        let dbClient = null;
-        if (typeof supabase !== 'undefined' && supabase.createClient) {
-            // Replace with your actual Supabase URL & Anon Key if saving to Supabase
-            const SUPABASE_URL = 'https://kzxdxnxgouthsywbsnvl.supabase.co';
-            const SUPABASE_ANON_KEY = ''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6eGR4bnhnb3V0aHN5d2JzbnZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMTczMzIsImV4cCI6MjA4MTg5MzMzMn0.nqzn89vmTFKVNuZPHfGRxdTg6UHT6GMud238rr49qag'';
-            try {
-                dbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            } catch (e) {
-                console.warn('Supabase client failed to initialize:', e);
-            }
-        }
-
-        // Register Alpine Data Component before Alpine boots
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('adminPricingManager', () => ({
+        function adminPricingManager() {
+            return {
                 searchQuery: '',
                 saving: false,
                 toast: { show: false, message: '', type: 'success' },
                 services: {},
 
                 init() {
-                    // Load services from servicesDB or global scope
+                    // Try getting services from global scope or localStorage
                     if (typeof servicesDB !== 'undefined') {
                         this.services = servicesDB;
                     } else if (window.servicesDB) {
                         this.services = window.servicesDB;
+                    } else {
+                        const cached = localStorage.getItem('fixzen_services_db');
+                        if (cached) {
+                            try { this.services = JSON.parse(cached); } catch(e){}
+                        }
                     }
 
-                    // Calculate discounts on load
+                    // Compute initial discounts
                     for (let key in this.services) {
-                        if (this.services[key].subs) {
+                        if (this.services[key]?.subs) {
                             this.services[key].subs.forEach(s => this.calculateDiscount(s));
                         }
                     }
                 },
 
                 get filteredServices() {
+                    if (!this.services || Object.keys(this.services).length === 0) return {};
                     if (!this.searchQuery.trim()) return this.services;
-                    const query = this.searchQuery.toLowerCase();
                     
+                    const query = this.searchQuery.toLowerCase();
                     let result = {};
+                    
                     for (let key in this.services) {
                         const service = this.services[key];
-                        const serviceTitle = (service.title || service.name || '').toLowerCase();
+                        const serviceTitle = (service.title || service.name || key).toLowerCase();
                         
                         const matchingSubs = (service.subs || []).filter(s => 
                             (s.n && s.n.toLowerCase().includes(query)) || 
@@ -102,6 +119,7 @@
                     this.saving = true;
 
                     try {
+                        // 1. Save to Supabase DB if client is active
                         if (dbClient) {
                             const { error } = await dbClient
                                 .from('services_config')
@@ -110,12 +128,12 @@
                             if (error) throw error;
                         }
 
-                        // Save to localStorage for client side fallback
+                        // 2. LocalStorage Fallback
                         localStorage.setItem('fixzen_services_db', JSON.stringify(this.services));
-                        this.showToast('All service prices saved successfully!', 'success');
+                        this.showToast('All service prices and discounts saved successfully!', 'success');
                     } catch (err) {
                         console.error('Error saving pricing:', err);
-                        this.showToast('Saved locally: ' + (err.message || 'Remote sync skipped'), 'success');
+                        this.showToast('Saved locally. (Database sync error: ' + (err.message || 'Check credentials') + ')', 'error');
                     } finally {
                         this.saving = false;
                     }
@@ -125,20 +143,16 @@
                     this.toast = { show: true, message: msg, type: type };
                     setTimeout(() => { this.toast.show = false; }, 4000);
                 }
-            }));
-        });
+            }
+        }
     </script>
 
-    <!-- Alpine.js (Loaded AFTER script definition above) -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
-    
-    <!-- FontAwesome & Google Fonts -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Alpine.js (Loaded without defer to prevent initialization ordering errors) -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
 </head>
 
 <body class="bg-brand-cream text-brand-dark antialiased font-sans min-h-screen pb-12"
-      x-data="adminPricingManager">
+      x-data="adminPricingManager()">
 
     <!-- Header Navigation -->
     <header class="bg-white border-b border-brand-gold/20 sticky top-0 z-30 shadow-sm">
@@ -176,7 +190,8 @@
         <div x-show="toast.show" 
              x-transition
              :class="toast.type === 'success' ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-rose-50 border-rose-300 text-rose-800'"
-             class="mb-6 p-4 rounded-xl border flex items-center justify-between text-xs font-bold shadow-sm sticky top-20 z-20">
+             class="mb-6 p-4 rounded-xl border flex items-center justify-between text-xs font-bold shadow-sm sticky top-20 z-20"
+             style="display: none;">
             <span x-text="toast.message"></span>
             <button @click="toast.show = false"><i class="fa-solid fa-xmark text-sm"></i></button>
         </div>
@@ -185,7 +200,7 @@
         <div x-show="Object.keys(filteredServices).length === 0" class="text-center py-16 bg-white rounded-2xl border border-brand-gold/20 shadow-sm">
             <i class="fa-solid fa-folder-open text-4xl text-brand-gold/40 mb-3"></i>
             <p class="font-bold text-brand-olive text-sm">No matching services found</p>
-            <p class="text-xs text-gray-400 mt-1">Try adjusting your search query.</p>
+            <p class="text-xs text-gray-400 mt-1">Make sure service.js is loaded or try adjusting your search query.</p>
         </div>
 
         <!-- Dynamically Render ALL Services and Sub-Services -->
