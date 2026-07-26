@@ -16,7 +16,7 @@ document.addEventListener('alpine:init', () => {
             try {
                 const { data, error } = await sb
                     .from('technicians')
-                    .select('tech_id, name, phone, category, experience, area, status, image_url, created_at')
+                    .select('tech_id, name, phone, category, experience, area, status, image_url, created_at, aadhaar, pan_card, police_verification_status')
                     .eq('tech_id', id)
                     .single();
 
@@ -34,6 +34,33 @@ document.addEventListener('alpine:init', () => {
             if (!this.tech?.phone) return '-';
             const p = this.tech.phone;
             return p.slice(0, -4).replace(/\d/g, '•') + p.slice(-4);
+        },
+
+        maskedAadhaar() {
+            if (!this.tech?.aadhaar) return 'Not on file';
+            const a = this.tech.aadhaar;
+            return 'xxxx xxxx ' + a.slice(-4);
+        },
+
+        maskedPan() {
+            if (!this.tech?.pan_card) return 'Not on file';
+            const p = this.tech.pan_card;
+            if (p.length <= 4) return p;
+            return '•'.repeat(p.length - 4) + p.slice(-4);
+        },
+
+        formattedDate() {
+            if (!this.tech?.created_at) return '-';
+            try {
+                return new Date(this.tech.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+            } catch {
+                return this.tech.created_at;
+            }
+        },
+
+        policeStatusLabel() {
+            const s = this.tech?.police_verification_status || 'pending';
+            return s.charAt(0).toUpperCase() + s.slice(1);
         }
     }));
 });
