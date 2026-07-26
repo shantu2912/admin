@@ -219,14 +219,13 @@
                 },
 
                 async saveAllChanges() {
-                    this.saving = true;
+    this.saving = true;
 
-                    try {
-                        // If Supabase is configured in your project, save updates to your Supabase table
-                        if (typeof supabase !== 'undefined') {
-                            const { error } = await supabase
-                                .from('services_config')
-                                .upsert({ id: 'services_data', data: this.services });
+    try {
+        // FIX: call .from() on 'dbClient'
+        const { error } = await dbClient
+            .from('services_config')
+            .upsert({ id: 'services_data', data: this.services });
 
                             if (error) throw error;
                         }
