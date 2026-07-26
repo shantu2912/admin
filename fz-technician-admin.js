@@ -47,6 +47,22 @@ function makeQrDataUrl(text, cellSize = 4, margin = 8) {
     return qr.createDataURL(cellSize, margin);
 }
 
+// ── formatting helpers ───────────────────────────────────────────
+function maskLast4(value) {
+    if (!value) return '-';
+    const clean = String(value).trim();
+    if (clean.length <= 4) return clean;
+    return clean.slice(0, -4).replace(/[^\s]/g, '•') + ' ' + clean.slice(-4);
+}
+function formatDate(iso) {
+    if (!iso) return '-';
+    try {
+        return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch {
+        return iso;
+    }
+}
+
 document.addEventListener('alpine:init', () => {
     Alpine.data('adminPanel', () => ({
         // ── auth (client-side gate only — swap for real auth in production) ──
@@ -63,6 +79,11 @@ document.addEventListener('alpine:init', () => {
         selectedTech: null,
         cardDataUrl: null,
         generatingCard: false,
+        panEditId: null,   // tech_id currently being edited inline
+        panEditValue: '',
+
+        maskLast4,
+        formatDate,
 
         init() {
             if (sessionStorage.getItem('fz_admin_authed') === '1') {
@@ -148,6 +169,49 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
+        async updatePoliceStatus(tech, newStatus) {
+            if (newStatus === tech.police_verification_status) return;
+            const prev = tech.police_verification_status;
+            tech.police_verification_status = newStatus;
+            try {
+                const { error } = await sb.from('technicians')
+                    .update({ police_verification_status: newStatus })
+                    .eq('tech_id', tech.tech_id);
+                if (error) throw error;
+            } catch (err) {
+                tech.police_verification_status = prev;
+                alert('Failed to update police verification status: ' + err.message +
+                    '\n\nIf this column doesn\'t exist yet, run FZ_ADD_VERIFICATION_FIELDS.sql in Supabase first.');
+            }
+        },
+
+        startEditPan(tech) {
+            this.panEditId = tech.tech_id;
+            this.panEditValue = tech.pan_card || '';
+            this.$nextTick(() => document.getElementById('pan-input-' + tech.tech_id)?.focus());
+        },
+
+        cancelEditPan() {
+            this.panEditId = null;
+            this.panEditValue = '';
+        },
+
+        async savePan(tech) {
+            const newVal = this.panEditValue.trim().toUpperCase();
+            this.panEditId = null;
+            if (newVal === (tech.pan_card || '')) return;
+            const prev = tech.pan_card;
+            tech.pan_card = newVal;
+            try {
+                const { error } = await sb.from('technicians').update({ pan_card: newVal }).eq('tech_id', tech.tech_id);
+                if (error) throw error;
+            } catch (err) {
+                tech.pan_card = prev;
+                alert('Failed to save PAN card: ' + err.message +
+                    '\n\nIf this column doesn\'t exist yet, run FZ_ADD_VERIFICATION_FIELDS.sql in Supabase first.');
+            }
+        },
+
         // ── ID card generation ──────────────────────────────────
         openCard(tech) {
             this.selectedTech = tech;
@@ -222,8 +286,11 @@ document.addEventListener('alpine:init', () => {
             ctx.fillText('Area: ' + (tech.area || '-'), tx, ty + 112);
             ctx.fillText('Experience: ' + (tech.experience != null ? tech.experience + ' yrs' : '-'), tx, ty + 144);
             ctx.fillText('Phone: ' + (tech.phone || '-'), tx, ty + 176);
+            ctx.font = '400 16px -apple-system, Segoe UI, Roboto, sans-serif';
+            ctx.fillStyle = '#8B8580';
+            ctx.fillText('Registered: ' + formatDate(tech.created_at), tx, ty + 200 + 46);
 
-            const badgeColor = tech.status === 'active' ? '#10B981' : (tech.status === 'rejected' ? '#DC2626' : '#F59E0B');
+            const badgeColor = tech.status === 'approved' ? '#10B981' : (tech.status === 'rejected' ? '#DC2626' : '#F59E0B');
             ctx.fillStyle = badgeColor;
             roundRect(ctx, tx, ty + 200, 160, 36, 18); ctx.fill();
             ctx.fillStyle = '#FFFFFF';
