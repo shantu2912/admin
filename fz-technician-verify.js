@@ -33,7 +33,7 @@ document.addEventListener('alpine:init', () => {
         maskedPhone() {
             if (!this.tech?.phone) return '-';
             const p = this.tech.phone;
-            return p.slice(0, -4).replace(/\d/g, '•') + p.slice(-4);
+            return p.slice(0, -4).replace(/\d/g, 'X') + p.slice(-4);
         },
 
         maskedAadhaar() {
@@ -46,7 +46,7 @@ document.addEventListener('alpine:init', () => {
             if (!this.tech?.pan_card) return 'Not on file';
             const p = this.tech.pan_card;
             if (p.length <= 4) return p;
-            return '•'.repeat(p.length - 4) + p.slice(-4);
+            return 'X'.repeat(p.length - 4) + p.slice(-4);
         },
 
         formattedDate() {
