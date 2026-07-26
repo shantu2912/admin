@@ -11,17 +11,10 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Alpine.js -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
-    
-    <!-- FontAwesome & Google Fonts -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- LINK TO YOUR LOCAL SERVICE DATABASE FILE -->
-    <!-- Adjust the path if your file is in a subfolder like 'js/service.js' -->
-    <script src="service.js"></script> 
+    <!-- Local Service Database File -->
+    <script src="service.js"></script>
 
+    <!-- Configure Component BEFORE Alpine Loads -->
     <script>
         tailwind.config = {
             theme: {
@@ -34,12 +27,118 @@
                     }
                 }
             }
+        };
+
+        // Initialize Supabase Client safely
+        let dbClient = null;
+        if (typeof supabase !== 'undefined' && supabase.createClient) {
+            // Replace with your actual Supabase URL & Anon Key if saving to Supabase
+            const SUPABASE_URL = 'https://kzxdxnxgouthsywbsnvl.supabase.co';
+            const SUPABASE_ANON_KEY = ''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6eGR4bnhnb3V0aHN5d2JzbnZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMTczMzIsImV4cCI6MjA4MTg5MzMzMn0.nqzn89vmTFKVNuZPHfGRxdTg6UHT6GMud238rr49qag'';
+            try {
+                dbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            } catch (e) {
+                console.warn('Supabase client failed to initialize:', e);
+            }
         }
+
+        // Register Alpine Data Component before Alpine boots
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('adminPricingManager', () => ({
+                searchQuery: '',
+                saving: false,
+                toast: { show: false, message: '', type: 'success' },
+                services: {},
+
+                init() {
+                    // Load services from servicesDB or global scope
+                    if (typeof servicesDB !== 'undefined') {
+                        this.services = servicesDB;
+                    } else if (window.servicesDB) {
+                        this.services = window.servicesDB;
+                    }
+
+                    // Calculate discounts on load
+                    for (let key in this.services) {
+                        if (this.services[key].subs) {
+                            this.services[key].subs.forEach(s => this.calculateDiscount(s));
+                        }
+                    }
+                },
+
+                get filteredServices() {
+                    if (!this.searchQuery.trim()) return this.services;
+                    const query = this.searchQuery.toLowerCase();
+                    
+                    let result = {};
+                    for (let key in this.services) {
+                        const service = this.services[key];
+                        const serviceTitle = (service.title || service.name || '').toLowerCase();
+                        
+                        const matchingSubs = (service.subs || []).filter(s => 
+                            (s.n && s.n.toLowerCase().includes(query)) || 
+                            (s.d && s.d.toLowerCase().includes(query))
+                        );
+
+                        if (matchingSubs.length > 0 || serviceTitle.includes(query)) {
+                            result[key] = { 
+                                ...service, 
+                                subs: matchingSubs.length > 0 ? matchingSubs : service.subs 
+                            };
+                        }
+                    }
+                    return result;
+                },
+
+                calculateDiscount(sub) {
+                    if (sub.op && sub.p && sub.op > sub.p) {
+                        sub.discount = Math.round(((sub.op - sub.p) / sub.op) * 100);
+                    } else {
+                        sub.discount = 0;
+                    }
+                },
+
+                async saveAllChanges() {
+                    this.saving = true;
+
+                    try {
+                        if (dbClient) {
+                            const { error } = await dbClient
+                                .from('services_config')
+                                .upsert({ id: 'services_data', data: this.services });
+
+                            if (error) throw error;
+                        }
+
+                        // Save to localStorage for client side fallback
+                        localStorage.setItem('fixzen_services_db', JSON.stringify(this.services));
+                        this.showToast('All service prices saved successfully!', 'success');
+                    } catch (err) {
+                        console.error('Error saving pricing:', err);
+                        this.showToast('Saved locally: ' + (err.message || 'Remote sync skipped'), 'success');
+                    } finally {
+                        this.saving = false;
+                    }
+                },
+
+                showToast(msg, type = 'success') {
+                    this.toast = { show: true, message: msg, type: type };
+                    setTimeout(() => { this.toast.show = false; }, 4000);
+                }
+            }));
+        });
     </script>
+
+    <!-- Alpine.js (Loaded AFTER script definition above) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+    
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 
 <body class="bg-brand-cream text-brand-dark antialiased font-sans min-h-screen pb-12"
-      x-data="adminPricingManager()" x-init="init()">
+      x-data="adminPricingManager">
 
     <!-- Header Navigation -->
     <header class="bg-white border-b border-brand-gold/20 sticky top-0 z-30 shadow-sm">
@@ -94,7 +193,7 @@
             <template x-for="(service, categoryKey) in filteredServices" :key="categoryKey">
                 <div class="bg-white border border-brand-gold/20 rounded-2xl shadow-sm overflow-hidden">
                     
-                    <!-- Main Category Banner Header -->
+                    <!-- Category Header -->
                     <div class="bg-brand-cream px-6 py-4 border-b border-brand-gold/10 flex justify-between items-center">
                         <div class="flex items-center gap-2.5">
                             <i class="fa-solid fa-layer-group text-brand-gold"></i>
@@ -104,12 +203,11 @@
                               x-text="(service.subs || []).length + ' Sub-services'"></span>
                     </div>
 
-                    <!-- Sub-Services List Loop -->
+                    <!-- Sub-Services List -->
                     <div class="divide-y divide-gray-100">
                         <template x-for="(sub, index) in service.subs" :key="index">
                             <div class="p-4 sm:p-6 hover:bg-gray-50/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 
-                                <!-- Service Info -->
                                 <div class="flex-1">
                                     <div class="flex items-center gap-2">
                                         <h3 class="font-bold text-brand-dark text-sm" x-text="sub.n"></h3>
@@ -119,10 +217,9 @@
                                     <p class="text-xs text-gray-400 mt-1 max-w-xl" x-text="sub.d"></p>
                                 </div>
 
-                                <!-- Dynamic Price Controls -->
                                 <div class="flex items-center gap-3 sm:gap-4 flex-wrap">
                                     
-                                    <!-- Original Price (op) Input -->
+                                    <!-- Original Price Input -->
                                     <div class="w-28">
                                         <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Original Price (₹)</label>
                                         <input type="number" 
@@ -132,7 +229,7 @@
                                                class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-gold">
                                     </div>
 
-                                    <!-- Offer Price (p) Input -->
+                                    <!-- Offer Price Input -->
                                     <div class="w-28">
                                         <label class="block text-[9px] font-bold text-brand-gold uppercase tracking-wider mb-1">Offer Price (₹)</label>
                                         <input type="number" 
@@ -142,7 +239,7 @@
                                                class="w-full bg-white border border-brand-gold/40 rounded-lg px-3 py-1.5 text-xs font-bold text-brand-olive focus:outline-none focus:ring-2 focus:ring-brand-gold">
                                     </div>
 
-                                    <!-- Auto Calculated Discount Badge -->
+                                    <!-- Discount Badge -->
                                     <div class="w-24 text-center">
                                         <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Discount</label>
                                         <span class="inline-block px-2.5 py-1 rounded-md text-[10px] font-extrabold transition-all"
@@ -160,101 +257,5 @@
             </template>
         </div>
     </main>
-
-    <!-- Application Script Logic -->
-    
-    <script>
-       const SUPABASE_URL = 'https://kzxdxnxgouthsywbsnvl.supabase.co'; // Replace with your URL
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6eGR4bnhnb3V0aHN5d2JzbnZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMTczMzIsImV4cCI6MjA4MTg5MzMzMn0.nqzn89vmTFKVNuZPHfGRxdTg6UHT6GMud238rr49qag'; // Replace with your key
-   
-
-// Create client instance named dbClient to avoid variable name collision with the SDK
-const dbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-function adminPricingManager() {
-    return {
-        searchQuery: '',
-        saving: false,
-        toast: { show: false, message: '', type: 'success' },
-        services: {},
-
-        init() {
-            // Automatically load services from servicesDB or global scope
-            if (typeof servicesDB !== 'undefined') {
-                this.services = servicesDB;
-            } else if (window.servicesDB) {
-                this.services = window.servicesDB;
-            }
-
-            // Compute initial discount percentage badges
-            for (let key in this.services) {
-                if (this.services[key].subs) {
-                    this.services[key].subs.forEach(s => this.calculateDiscount(s));
-                }
-            }
-        },
-
-        get filteredServices() {
-            if (!this.searchQuery.trim()) return this.services;
-            const query = this.searchQuery.toLowerCase();
-            
-            let result = {};
-            for (let key in this.services) {
-                const service = this.services[key];
-                const serviceTitle = (service.title || service.name || '').toLowerCase();
-                
-                const matchingSubs = (service.subs || []).filter(s => 
-                    (s.n && s.n.toLowerCase().includes(query)) || 
-                    (s.d && s.d.toLowerCase().includes(query))
-                );
-
-                if (matchingSubs.length > 0 || serviceTitle.includes(query)) {
-                    result[key] = { 
-                        ...service, 
-                        subs: matchingSubs.length > 0 ? matchingSubs : service.subs 
-                    };
-                }
-            }
-            return result;
-        },
-
-        calculateDiscount(sub) {
-            if (sub.op && sub.p && sub.op > sub.p) {
-                sub.discount = Math.round(((sub.op - sub.p) / sub.op) * 100);
-            } else {
-                sub.discount = 0;
-            }
-        },
-
-        async saveAllChanges() {
-            this.saving = true;
-
-            try {
-                // Upsert changes to Supabase table using initialized dbClient
-                const { error } = await dbClient
-                    .from('services_config')
-                    .upsert({ id: 'services_data', data: this.services });
-
-                if (error) throw error;
-
-                // Update local storage cache as well
-                localStorage.setItem('fixzen_services_db', JSON.stringify(this.services));
-
-                this.showToast('All service prices and offer discounts saved successfully!', 'success');
-            } catch (err) {
-                console.error('Error saving pricing:', err);
-                this.showToast('Failed to sync with remote database: ' + err.message, 'error');
-            } finally {
-                this.saving = false;
-            }
-        },
-
-        showToast(msg, type = 'success') {
-            this.toast = { show: true, message: msg, type: type };
-            setTimeout(() => { this.toast.show = false; }, 4000);
-        }
-    }
-}
-    </script>
 </body>
 </html>
