@@ -162,93 +162,97 @@
     </main>
 
     <!-- Application Script Logic -->
-    <script>
-        function adminPricingManager() {
-            return {
-                searchQuery: '',
-                saving: false,
-                toast: { show: false, message: '', type: 'success' },
-                services: {},
+    // 1. Initialize your Supabase client properly
+const SUPABASE_URL = 'https://kzxdxnxgouthsywbsnvl.supabase.co'; // Replace with your URL
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6eGR4bnhnb3V0aHN5d2JzbnZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMTczMzIsImV4cCI6MjA4MTg5MzMzMn0.nqzn89vmTFKVNuZPHfGRxdTg6UHT6GMud238rr49qag'; // Replace with your key
 
-                init() {
-                    // 1. Automatically load services from servicesDB or global scope
-                    if (typeof servicesDB !== 'undefined') {
-                        this.services = servicesDB;
-                    } else if (window.servicesDB) {
-                        this.services = window.servicesDB;
-                    }
+// Create client instance named dbClient to avoid variable name collision with the SDK
+const dbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-                    // 2. Compute initial discount percentage badges across ALL services & sub-services
-                    for (let key in this.services) {
-                        if (this.services[key].subs) {
-                            this.services[key].subs.forEach(s => this.calculateDiscount(s));
-                        }
-                    }
-                },
+function adminPricingManager() {
+    return {
+        searchQuery: '',
+        saving: false,
+        toast: { show: false, message: '', type: 'success' },
+        services: {},
 
-                get filteredServices() {
-                    if (!this.searchQuery.trim()) return this.services;
-                    const query = this.searchQuery.toLowerCase();
-                    
-                    let result = {};
-                    for (let key in this.services) {
-                        const service = this.services[key];
-                        const serviceTitle = (service.title || service.name || '').toLowerCase();
-                        
-                        const matchingSubs = (service.subs || []).filter(s => 
-                            (s.n && s.n.toLowerCase().includes(query)) || 
-                            (s.d && s.d.toLowerCase().includes(query))
-                        );
+        init() {
+            // Automatically load services from servicesDB or global scope
+            if (typeof servicesDB !== 'undefined') {
+                this.services = servicesDB;
+            } else if (window.servicesDB) {
+                this.services = window.servicesDB;
+            }
 
-                        if (matchingSubs.length > 0 || serviceTitle.includes(query)) {
-                            result[key] = { 
-                                ...service, 
-                                subs: matchingSubs.length > 0 ? matchingSubs : service.subs 
-                            };
-                        }
-                    }
-                    return result;
-                },
-
-                calculateDiscount(sub) {
-                    if (sub.op && sub.p && sub.op > sub.p) {
-                        sub.discount = Math.round(((sub.op - sub.p) / sub.op) * 100);
-                    } else {
-                        sub.discount = 0;
-                    }
-                },
-
-                async saveAllChanges() {
-                    this.saving = true;
-
-                    try {
-                        // If Supabase is configured in your project, save updates to your Supabase table
-                        if (typeof supabase !== 'undefined') {
-                            const { error } = await supabase
-                                .from('services_config')
-                                .upsert({ id: 'services_data', data: this.services });
-
-                            if (error) throw error;
-                        }
-
-                        // Also update localStorage cache for immediate UI persistence across pages
-                        localStorage.setItem('fixzen_services_db', JSON.stringify(this.services));
-
-                        this.showToast('All service prices and offer discounts saved successfully!', 'success');
-                    } catch (err) {
-                        console.error('Error saving pricing:', err);
-                        this.showToast('Saved locally, but failed to sync with remote database.', 'error');
-                    } finally {
-                        this.saving = false;
-                    }
-                },
-
-                showToast(msg, type = 'success') {
-                    this.toast = { show: true, message: msg, type: type };
-                    setTimeout(() => { this.toast.show = false; }, 4000);
+            // Compute initial discount percentage badges
+            for (let key in this.services) {
+                if (this.services[key].subs) {
+                    this.services[key].subs.forEach(s => this.calculateDiscount(s));
                 }
             }
+        },
+
+        get filteredServices() {
+            if (!this.searchQuery.trim()) return this.services;
+            const query = this.searchQuery.toLowerCase();
+            
+            let result = {};
+            for (let key in this.services) {
+                const service = this.services[key];
+                const serviceTitle = (service.title || service.name || '').toLowerCase();
+                
+                const matchingSubs = (service.subs || []).filter(s => 
+                    (s.n && s.n.toLowerCase().includes(query)) || 
+                    (s.d && s.d.toLowerCase().includes(query))
+                );
+
+                if (matchingSubs.length > 0 || serviceTitle.includes(query)) {
+                    result[key] = { 
+                        ...service, 
+                        subs: matchingSubs.length > 0 ? matchingSubs : service.subs 
+                    };
+                }
+            }
+            return result;
+        },
+
+        calculateDiscount(sub) {
+            if (sub.op && sub.p && sub.op > sub.p) {
+                sub.discount = Math.round(((sub.op - sub.p) / sub.op) * 100);
+            } else {
+                sub.discount = 0;
+            }
+        },
+
+        async saveAllChanges() {
+            this.saving = true;
+
+            try {
+                // Upsert changes to Supabase table using initialized dbClient
+                const { error } = await dbClient
+                    .from('services_config')
+                    .upsert({ id: 'services_data', data: this.services });
+
+                if (error) throw error;
+
+                // Update local storage cache as well
+                localStorage.setItem('fixzen_services_db', JSON.stringify(this.services));
+
+                this.showToast('All service prices and offer discounts saved successfully!', 'success');
+            } catch (err) {
+                console.error('Error saving pricing:', err);
+                this.showToast('Failed to sync with remote database: ' + err.message, 'error');
+            } finally {
+                this.saving = false;
+            }
+        },
+
+        showToast(msg, type = 'success') {
+            this.toast = { show: true, message: msg, type: type };
+            setTimeout(() => { this.toast.show = false; }, 4000);
         }
-    </script>
+    }
+}
+</script>
 </body>
 </html>
