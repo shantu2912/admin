@@ -33,13 +33,22 @@
         display: inline-block; margin-top: 12px; padding: 5px 16px; border-radius: 20px;
         font-size: 12px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
     }
-    .badge.active { background: #D1FAE5; color: #047857; }
+    .badge.approved { background: #D1FAE5; color: #047857; }
     .badge.pending { background: #FEF3C7; color: #B45309; }
     .badge.rejected { background: #FEE2E2; color: #B91C1C; }
     .detail-list { text-align: left; margin-top: 24px; border-top: 1px solid #E8E2D8; padding-top: 18px; }
+    .id-list { text-align: left; margin-top: 14px; border-top: 1px dashed #E8E2D8; padding-top: 14px; }
     .detail-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; }
     .detail-row .label { color: #8B8580; }
     .detail-row .value { font-weight: 600; color: #1A1A1A; }
+    .detail-row .value.mono { font-family: monospace; letter-spacing: .5px; }
+    .pv-badge {
+        font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px;
+        padding: 3px 10px; border-radius: 20px;
+    }
+    .pv-badge.pending { background: #FEF3C7; color: #B45309; }
+    .pv-badge.cleared { background: #D1FAE5; color: #047857; }
+    .pv-badge.flagged { background: #FEE2E2; color: #B91C1C; }
     .footer-note { margin-top: 22px; font-size: 12px; color: #8B8580; line-height: 1.6; }
     .spinner {
         width: 28px; height: 28px; margin: 0 auto;
@@ -85,11 +94,21 @@
                 <div class="detail-row"><span class="label">Experience</span><span class="value" x-text="(tech.experience ?? '-') + ' yrs'"></span></div>
                 <div class="detail-row"><span class="label">Service Area</span><span class="value" x-text="tech.area"></span></div>
                 <div class="detail-row"><span class="label">Phone</span><span class="value" x-text="maskedPhone()"></span></div>
+                <div class="detail-row"><span class="label">Registered on</span><span class="value" x-text="formattedDate()"></span></div>
+            </div>
+
+            <div class="id-list">
+                <div class="detail-row"><span class="label">Aadhaar</span><span class="value mono" x-text="maskedAadhaar()"></span></div>
+                <div class="detail-row"><span class="label">PAN</span><span class="value mono" x-text="maskedPan()"></span></div>
+                <div class="detail-row">
+                    <span class="label">Police verification</span>
+                    <span class="pv-badge" :class="tech.police_verification_status || 'pending'" x-text="policeStatusLabel()"></span>
+                </div>
             </div>
 
             <div class="footer-note">
                 This page confirms the holder is a registered FixZen technician.
-                If the status above is not <b>ACTIVE</b>, proceed with caution.
+                If the status above is not <b>APPROVED</b>, proceed with caution.
             </div>
         </div>
     </template>
