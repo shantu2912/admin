@@ -1,39 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FixZen Admin - Service & Offer Pricing Manager</title>
-    
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FixZen Admin – Service & Offer Pricing Manager</title>
+
     <!-- Supabase JS SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+    </script>
+
     <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com">
+    </script>
 
     <!-- FontAwesome & Google Fonts -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
-    <!-- 1. External scripts (loaded in isolation so failure doesn't stop main script) -->
-    <script src="../service.js" onerror="console.warn('Failed to load ../service.js')"></script>
-    <script src="service.js" onerror="console.warn('Failed to load service.js')"></script>
+    <!-- External service definitions (fail silently) -->
+    <script src="../service.js" onerror="console.warn('Failed to load ../service.js')">
+    </script>
+    <script src="service.js" onerror="console.warn('Failed to load service.js')">
+    </script>
 
-    <!-- 2. Main Logic Block -->
+    <!-- ============================================================ -->
+    <!--  MAIN SCRIPT — defines global function for Alpine x-data      -->
+    <!--  Runs synchronously BEFORE Alpine loads (defer), so the       -->
+    <!--  function is available when Alpine processes the DOM.         -->
+    <!-- ============================================================ -->
     <script>
-        // Supabase Credentials
+        // ─── Supabase Credentials ───────────────────────────────────────
         const SUPABASE_URL = 'https://kzxdxnxgouthsywbsnvl.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6eGR4bnhnb3V0aHN5d2JzbnZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMTczMzIsImV4cCI6MjA4MTg5MzMzMn0.nqzn89vmTFKVNuZPHfGRxdTg6UHT6GMud238rr49qag';
+        const SUPABASE_ANON_KEY =
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6eGR4bnhnb3V0aHN5d2JzbnZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMTczMzIsImV4cCI6MjA4MTg5MzMzMn0.nqzn89vmTFKVNuZPHfGRxdTg6UHT6GMud238rr49qag';
 
         let dbClient = null;
         if (typeof supabase !== 'undefined' && supabase.createClient) {
             try {
                 dbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            } catch (e) {
-                console.warn('Supabase client failed to initialize:', e);
-            }
+            } catch (_) { /* ignore */ }
         }
 
+        // ─── Tailwind config ────────────────────────────────────────────
         tailwind.config = {
             theme: {
                 extend: {
@@ -47,28 +55,60 @@
             }
         };
 
-        // Register Alpine component directly on init
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('adminPricingManager', () => ({
+        // ─── Global Alpine data function ──────────────────────────────
+        //  This is called by x-data="adminPricingManager()" on <body>.
+        //  Because it is defined in a synchronous <head> script, it exists
+        //  before Alpine.js (deferred) processes the DOM.
+        window.adminPricingManager = function() {
+
+            // ----- load services from servicesDB or localStorage -----
+            let initialServices = {};
+            if (typeof servicesDB !== 'undefined') {
+                initialServices = servicesDB;
+            } else if (window.servicesDB) {
+                initialServices = window.servicesDB;
+            } else {
+                const cached = localStorage.getItem('fixzen_services_db');
+                if (cached) {
+                    try { initialServices = JSON.parse(cached); } catch (_) {}
+                }
+            }
+
+            // compute discounts for each sub-service
+            function computeDiscount(sub) {
+                if (sub.op && sub.p && sub.op > sub.p) {
+                    sub.discount = Math.round(((sub.op - sub.p) / sub.op) * 100);
+                } else {
+                    sub.discount = 0;
+                }
+                return sub;
+            }
+
+            // apply discount to all subs in a service
+            function applyDiscountsToService(service) {
+                if (service && service.subs) {
+                    service.subs.forEach(s => computeDiscount(s));
+                }
+                return service;
+            }
+
+            // apply to all services
+            for (let key in initialServices) {
+                applyDiscountsToService(initialServices[key]);
+            }
+
+            // ----- return the Alpine data object -----
+            return {
+
+                // ─── state ──────────────────────────────────────────
                 searchQuery: '',
                 saving: false,
                 toast: { show: false, message: '', type: 'success' },
-                services: {},
+                services: initialServices,
 
+                // ─── init ────────────────────────────────────────────
                 init() {
-                    // Pull services from servicesDB or localStorage fallback
-                    if (typeof servicesDB !== 'undefined') {
-                        this.services = servicesDB;
-                    } else if (window.servicesDB) {
-                        this.services = window.servicesDB;
-                    } else {
-                        const cached = localStorage.getItem('fixzen_services_db');
-                        if (cached) {
-                            try { this.services = JSON.parse(cached); } catch(e){}
-                        }
-                    }
-
-                    // Compute discounts
+                    // re-run discount calculation after any external changes
                     for (let key in this.services) {
                         if (this.services[key]?.subs) {
                             this.services[key].subs.forEach(s => this.calculateDiscount(s));
@@ -76,32 +116,33 @@
                     }
                 },
 
+                // ─── computed: filteredServices ─────────────────────
                 get filteredServices() {
                     if (!this.services || Object.keys(this.services).length === 0) return {};
-                    if (!this.searchQuery.trim()) return this.services;
-                    
-                    const query = this.searchQuery.toLowerCase();
-                    let result = {};
-                    
+                    const q = this.searchQuery.trim().toLowerCase();
+                    if (!q) return this.services;
+
+                    const result = {};
                     for (let key in this.services) {
-                        const service = this.services[key];
-                        const serviceTitle = (service.title || service.name || key).toLowerCase();
-                        
-                        const matchingSubs = (service.subs || []).filter(s => 
-                            (s.n && s.n.toLowerCase().includes(query)) || 
-                            (s.d && s.d.toLowerCase().includes(query))
+                        const svc = this.services[key];
+                        const title = (svc.title || svc.name || key).toLowerCase();
+
+                        const matchingSubs = (svc.subs || []).filter(s =>
+                            (s.n && s.n.toLowerCase().includes(q)) ||
+                            (s.d && s.d.toLowerCase().includes(q))
                         );
 
-                        if (matchingSubs.length > 0 || serviceTitle.includes(query)) {
-                            result[key] = { 
-                                ...service, 
-                                subs: matchingSubs.length > 0 ? matchingSubs : service.subs 
+                        if (matchingSubs.length > 0 || title.includes(q)) {
+                            result[key] = {
+                                ...svc,
+                                subs: matchingSubs.length > 0 ? matchingSubs : svc.subs
                             };
                         }
                     }
                     return result;
                 },
 
+                // ─── methods ─────────────────────────────────────────
                 calculateDiscount(sub) {
                     if (sub.op && sub.p && sub.op > sub.p) {
                         sub.discount = Math.round(((sub.op - sub.p) / sub.op) * 100);
@@ -112,21 +153,18 @@
 
                 async saveAllChanges() {
                     this.saving = true;
-
                     try {
                         if (dbClient) {
                             const { error } = await dbClient
                                 .from('services_config')
                                 .upsert({ id: 'services_data', data: this.services });
-
                             if (error) throw error;
                         }
-
                         localStorage.setItem('fixzen_services_db', JSON.stringify(this.services));
-                        this.showToast('All service prices and discounts saved successfully!', 'success');
+                        this.showToast('✅ All service prices and discounts saved successfully!', 'success');
                     } catch (err) {
-                        console.error('Error saving pricing:', err);
-                        this.showToast('Saved locally. (Database sync error: ' + (err.message || 'Check connection') + ')', 'error');
+                        console.error('Save error:', err);
+                        this.showToast('⚠️ Saved locally. (DB sync: ' + (err.message || 'connection issue') + ')', 'error');
                     } finally {
                         this.saving = false;
                     }
@@ -134,136 +172,149 @@
 
                 showToast(msg, type = 'success') {
                     this.toast = { show: true, message: msg, type: type };
-                    setTimeout(() => { this.toast.show = false; }, 4000);
+                    clearTimeout(this._toastTimer);
+                    this._toastTimer = setTimeout(() => { this.toast.show = false; }, 4000);
                 }
-            }));
-        });
+            };
+        };
     </script>
 
-    <!-- Alpine.js (Loaded AFTER component registration script with defer) -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+    <!-- Alpine.js (defer – runs after DOM parsing, but our global function is already defined) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js">
+    </script>
 </head>
 
 <body class="bg-brand-cream text-brand-dark antialiased font-sans min-h-screen pb-12"
-      x-data="adminPricingManager">
+x-data="adminPricingManager()">
 
-    <!-- Header Navigation -->
+    <!-- ===== HEADER ===== -->
     <header class="bg-white border-b border-brand-gold/20 sticky top-0 z-30 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-brand-olive text-white flex items-center justify-center font-black text-lg shadow-sm">
                     FZ
                 </div>
                 <div>
                     <h1 class="text-xl font-bold text-brand-olive">FixZen Admin</h1>
-                    <p class="text-xs text-brand-dark/50">Service Offer & Pricing Management Dashboard</p>
+                    <p class="text-xs text-brand-dark/50">Service Offer &amp; Pricing Management Dashboard</p>
                 </div>
             </div>
 
             <div class="flex items-center gap-3 w-full sm:w-auto">
                 <div class="relative w-full sm:w-72">
                     <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                    <input type="text" x-model="searchQuery" placeholder="Search service or sub-service..." 
-                           class="w-full bg-brand-cream border border-brand-gold/30 rounded-xl pl-8 pr-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-gold/40">
+                    <input type="text"
+                    x-model="searchQuery"
+                    placeholder="Search service or sub-service..."
+                    class="w-full bg-brand-cream border border-brand-gold/30 rounded-xl pl-8 pr-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-gold/40" />
                 </div>
-                <button @click="saveAllChanges()" 
-                        :disabled="saving"
-                        class="bg-brand-gold hover:bg-brand-olive text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 whitespace-nowrap disabled:opacity-50">
-                    <i class="fa-solid" :class="saving ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
-                    <span x-text="saving ? 'Saving...' : 'Save All Changes'"></span>
-                </button>
+                <button @click="saveAllChanges()"
+                :disabled="saving"
+                class="bg-brand-gold hover:bg-brand-olive text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 whitespace-nowrap disabled:opacity-50">
+                <i class="fa-solid" :class="saving ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
+                <span x-text="saving ? 'Saving…' : 'Save All Changes'"></span>
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- ===== MAIN ===== -->
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Toast -->
+    <div x-show="toast.show"
+    x-transition
+    :class="toast.type === 'success' ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-rose-50 border-rose-300 text-rose-800'"
+    class="mb-6 p-4 rounded-xl border flex items-center justify-between text-xs font-bold shadow-sm sticky top-20 z-20"
+    style="display: none;">
+    <span x-text="toast.message"></span>
+    <button @click="toast.show = false"><i class="fa-solid fa-xmark text-sm"></i></button>
+</div>
+
+<!-- Empty state -->
+<div x-show="Object.keys(filteredServices).length === 0"
+class="text-center py-16 bg-white rounded-2xl border border-brand-gold/20 shadow-sm">
+<i class="fa-solid fa-folder-open text-4xl text-brand-gold/40 mb-3"></i>
+<p class="font-bold text-brand-olive text-sm">No matching services found</p>
+<p class="text-xs text-gray-400 mt-1">Make sure service.js is loaded or adjust your search.</p>
+</div>
+
+<!-- Service cards -->
+<div class="space-y-6">
+    <template x-for="(service, categoryKey) in filteredServices" :key="categoryKey">
+        <div class="bg-white border border-brand-gold/20 rounded-2xl shadow-sm overflow-hidden">
+
+            <!-- category header -->
+            <div class="bg-brand-cream px-6 py-4 border-b border-brand-gold/10 flex justify-between items-center">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-layer-group text-brand-gold"></i>
+                    <h2 class="font-bold text-brand-olive text-base" x-text="service.title || service.name || categoryKey"></h2>
+                </div>
+                <span class="text-[10px] font-extrabold bg-brand-gold/10 text-brand-gold px-3 py-1 rounded-full uppercase tracking-wider"
+                x-text="(service.subs || []).length + ' Sub-services'"></span>
+            </div>
+
+            <!-- sub‑services -->
+            <div class="divide-y divide-gray-100">
+                <template x-for="(sub, idx) in service.subs" :key="idx">
+                    <div class="p-4 sm:p-6 hover:bg-gray-50/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
+
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h3 class="font-bold text-brand-dark text-sm" x-text="sub.n"></h3>
+                                <span x-show="sub.popular"
+                                class="text-[9px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">
+                                🔥 Popular
+                            </span>
+                            <span x-show="sub.has_options"
+                            class="text-[9px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">
+                            Options Available
+                        </span>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1 max-w-xl" x-text="sub.d"></p>
+                </div>
+
+                <div class="flex items-center gap-3 sm:gap-4 flex-wrap">
+
+                    <!-- Original Price -->
+                    <div class="w-28">
+                        <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Original (₹)</label>
+                        <input type="number"
+                        x-model.number="sub.op"
+                        @input="calculateDiscount(sub)"
+                        placeholder="e.g. 1500"
+                        class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-gold" />
+                    </div>
+
+                    <!-- Offer Price -->
+                    <div class="w-28">
+                        <label class="block text-[9px] font-bold text-brand-gold uppercase tracking-wider mb-1">Offer (₹)</label>
+                        <input type="number"
+                        x-model.number="sub.p"
+                        @input="calculateDiscount(sub)"
+                        placeholder="e.g. 1200"
+                        class="w-full bg-white border border-brand-gold/40 rounded-lg px-3 py-1.5 text-xs font-bold text-brand-olive focus:outline-none focus:ring-2 focus:ring-brand-gold" />
+                    </div>
+
+                    <!-- Discount badge -->
+                    <div class="w-24 text-center">
+                        <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Discount</label>
+                        <span class="inline-block px-2.5 py-1 rounded-md text-[10px] font-extrabold transition-all"
+                        :class="(sub.discount && sub.discount > 0) ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-gray-100 text-gray-400'"
+                        x-text="(sub.discount && sub.discount > 0) ? sub.discount + '% OFF' : '0%'">
+                    </span>
+                </div>
+
             </div>
         </div>
-    </header>
+    </template>
+</div>
 
-    <!-- Main Section -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        <!-- Toast Notification Alert -->
-        <div x-show="toast.show" 
-             x-transition
-             :class="toast.type === 'success' ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-rose-50 border-rose-300 text-rose-800'"
-             class="mb-6 p-4 rounded-xl border flex items-center justify-between text-xs font-bold shadow-sm sticky top-20 z-20"
-             style="display: none;">
-            <span x-text="toast.message"></span>
-            <button @click="toast.show = false"><i class="fa-solid fa-xmark text-sm"></i></button>
-        </div>
+</div>
+</template>
+</div>
 
-        <!-- Empty / Loading State -->
-        <div x-show="Object.keys(filteredServices).length === 0" class="text-center py-16 bg-white rounded-2xl border border-brand-gold/20 shadow-sm">
-            <i class="fa-solid fa-folder-open text-4xl text-brand-gold/40 mb-3"></i>
-            <p class="font-bold text-brand-olive text-sm">No matching services found</p>
-            <p class="text-xs text-gray-400 mt-1">Make sure service.js is loaded or try adjusting your search query.</p>
-        </div>
-
-        <!-- Dynamically Render ALL Services and Sub-Services -->
-        <div class="space-y-6">
-            <template x-for="(service, categoryKey) in filteredServices" :key="categoryKey">
-                <div class="bg-white border border-brand-gold/20 rounded-2xl shadow-sm overflow-hidden">
-                    
-                    <!-- Category Header -->
-                    <div class="bg-brand-cream px-6 py-4 border-b border-brand-gold/10 flex justify-between items-center">
-                        <div class="flex items-center gap-2.5">
-                            <i class="fa-solid fa-layer-group text-brand-gold"></i>
-                            <h2 class="font-bold text-brand-olive text-base" x-text="service.title || service.name || categoryKey"></h2>
-                        </div>
-                        <span class="text-[10px] font-extrabold bg-brand-gold/10 text-brand-gold px-3 py-1 rounded-full uppercase tracking-wider"
-                              x-text="(service.subs || []).length + ' Sub-services'"></span>
-                    </div>
-
-                    <!-- Sub-Services List -->
-                    <div class="divide-y divide-gray-100">
-                        <template x-for="(sub, index) in service.subs" :key="index">
-                            <div class="p-4 sm:p-6 hover:bg-gray-50/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-2">
-                                        <h3 class="font-bold text-brand-dark text-sm" x-text="sub.n"></h3>
-                                        <span x-show="sub.popular" class="text-[9px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">🔥 Popular</span>
-                                        <span x-show="sub.has_options" class="text-[9px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">Options Available</span>
-                                    </div>
-                                    <p class="text-xs text-gray-400 mt-1 max-w-xl" x-text="sub.d"></p>
-                                </div>
-
-                                <div class="flex items-center gap-3 sm:gap-4 flex-wrap">
-                                    
-                                    <!-- Original Price Input -->
-                                    <div class="w-28">
-                                        <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Original Price (₹)</label>
-                                        <input type="number" 
-                                               x-model.number="sub.op" 
-                                               @input="calculateDiscount(sub)"
-                                               placeholder="e.g. 1500"
-                                               class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-gold">
-                                    </div>
-
-                                    <!-- Offer Price Input -->
-                                    <div class="w-28">
-                                        <label class="block text-[9px] font-bold text-brand-gold uppercase tracking-wider mb-1">Offer Price (₹)</label>
-                                        <input type="number" 
-                                               x-model.number="sub.p" 
-                                               @input="calculateDiscount(sub)"
-                                               placeholder="e.g. 1200"
-                                               class="w-full bg-white border border-brand-gold/40 rounded-lg px-3 py-1.5 text-xs font-bold text-brand-olive focus:outline-none focus:ring-2 focus:ring-brand-gold">
-                                    </div>
-
-                                    <!-- Discount Badge -->
-                                    <div class="w-24 text-center">
-                                        <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Discount</label>
-                                        <span class="inline-block px-2.5 py-1 rounded-md text-[10px] font-extrabold transition-all"
-                                              :class="(sub.discount && sub.discount > 0) ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-gray-100 text-gray-400'"
-                                              x-text="(sub.discount && sub.discount > 0) ? sub.discount + '% OFF' : '0%'">
-                                        </span>
-                                    </div>
-
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-
-                </div>
-            </template>
-        </div>
-    </main>
+</main>
 </body>
 </html>
