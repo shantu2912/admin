@@ -162,13 +162,11 @@
     </main>
 
     <!-- Application Script Logic -->
+    
     <script>
-     // 1. Initialize your Supabase client properly
-const SUPABASE_URL = 'https://kzxdxnxgouthsywbsnvl.supabase.co'; // Replace with your URL
+       const SUPABASE_URL = 'https://kzxdxnxgouthsywbsnvl.supabase.co'; // Replace with your URL
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6eGR4bnhnb3V0aHN5d2JzbnZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMTczMzIsImV4cCI6MjA4MTg5MzMzMn0.nqzn89vmTFKVNuZPHfGRxdTg6UHT6GMud238rr49qag'; // Replace with your key
-    </script>
-    <script>
-       
+   
 
 // Create client instance named dbClient to avoid variable name collision with the SDK
 const dbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
