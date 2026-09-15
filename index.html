@@ -1,185 +1,516 @@
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FixZen Admin - Management Console</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FixZen Admin — Management Console</title>
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'brand-olive': '#5D5646',
-                        'brand-gold': '#A07D54',
-                        'brand-cream': '#EEEAE2',
-                        'brand-dark': '#4D4C4B',
-                    },
-                    fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-                        serif: ['"Playfair Display"', 'serif'],
-                    },
-                    boxShadow: {
-                        'super-float': '0 30px 60px -15px rgba(93, 86, 70, 0.25)',
-                    }
-                }
-            }
-        }
-    </script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        'brand-olive': '#5D5646',
+        'brand-gold':  '#A07D54',
+        'brand-cream': '#EEEAE2',
+        'brand-dark':  '#4D4C4B',
+        ink: { 900:'#131312', 800:'#1b1b1a', 700:'#242422', 600:'#2f2f2c' }
+      },
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace']
+      },
+      boxShadow: {
+        'super-float': '0 30px 60px -15px rgba(93, 86, 70, 0.25)',
+        'glow-gold': '0 0 0 1px rgba(160,125,84,.25), 0 20px 40px -20px rgba(160,125,84,.6)'
+      },
+      keyframes: {
+        shimmer: { '100%': { transform: 'translateX(100%)' } },
+        popin:   { '0%': { opacity:0, transform:'translateY(8px) scale(.97)' }, '100%': { opacity:1, transform:'translateY(0) scale(1)' } },
+        slidein: { '0%': { opacity:0, transform:'translateX(120%)' }, '100%': { opacity:1, transform:'translateX(0)' } },
+        pulseRing: { '0%': { boxShadow:'0 0 0 0 rgba(34,197,94,.6)' }, '70%': { boxShadow:'0 0 0 8px rgba(34,197,94,0)' }, '100%': { boxShadow:'0 0 0 0 rgba(34,197,94,0)' } }
+      },
+      animation: {
+        shimmer: 'shimmer 1.6s infinite',
+        popin: 'popin .25s cubic-bezier(.2,.9,.3,1.2) both',
+        slidein: 'slidein .35s cubic-bezier(.2,.9,.3,1.1) both',
+        pulseRing: 'pulseRing 2s infinite'
+      }
+    }
+  }
+}
+</script>
+
+<style>
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(93,86,70,.22); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(160,125,84,.55); background-clip: content-box; }
+  .dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); background-clip: content-box; }
+
+  .skeleton { position: relative; overflow: hidden; background: rgba(93,86,70,.07); }
+  .dark .skeleton { background: rgba(255,255,255,.06); }
+  .skeleton::after {
+    content:''; position:absolute; inset:0; transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
+    animation: shimmer 1.6s infinite;
+  }
+  .dark .skeleton::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent); }
+
+  [x-cloak] { display: none !important; }
+  .row-enter { animation: popin .3s cubic-bezier(.2,.9,.3,1.2) both; }
+  input[type="checkbox"].fz {
+    appearance: none; width: 18px; height: 18px; border-radius: 6px; cursor: pointer;
+    border: 1.5px solid rgba(93,86,70,.35); background: transparent; position: relative;
+    transition: all .15s ease; flex-shrink: 0;
+  }
+  .dark input[type="checkbox"].fz { border-color: rgba(255,255,255,.25); }
+  input[type="checkbox"].fz:hover { border-color: #A07D54; }
+  input[type="checkbox"].fz:checked { background: #5D5646; border-color: #5D5646; }
+  .dark input[type="checkbox"].fz:checked { background: #A07D54; border-color: #A07D54; }
+  input[type="checkbox"].fz:checked::after {
+    content:''; position:absolute; left:5.5px; top:2px; width:5px; height:10px;
+    border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+  }
+  input[type="checkbox"].fz:indeterminate { background:#A07D54; border-color:#A07D54; }
+  input[type="checkbox"].fz:indeterminate::after {
+    content:''; position:absolute; left:4px; top:7.5px; width:8px; height:2px; background:#fff; border-radius:2px;
+  }
+  .donut-seg { transition: stroke-dasharray .8s cubic-bezier(.2,.9,.3,1), stroke-dashoffset .8s cubic-bezier(.2,.9,.3,1); }
+  .bar-grow { transition: height .7s cubic-bezier(.2,.9,.3,1.1); }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+</style>
 </head>
 
-<body class="bg-brand-cream text-brand-dark antialiased font-sans" x-data="{ sidebarOpen: false }">
+<body class="bg-brand-cream dark:bg-ink-900 text-brand-dark dark:text-brand-cream/90 antialiased font-sans transition-colors duration-300">
 
-    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-brand-olive/10 px-6 py-4 flex justify-between items-center">
-        <div class="flex items-center gap-4">
-            <button @click="sidebarOpen = true" class="text-brand-olive hover:scale-110 transition-transform">
-                <i class="fa-solid fa-bars-staggered text-xl"></i>
-            </button>
-            <h1 class="text-xl font-extrabold tracking-tighter text-brand-olive">
-                FIX <span class="text-brand-gold">ZEN</span> <span class="text-[10px] uppercase tracking-[0.3em] ml-2 opacity-50">Admin</span>
-            </h1>
+<div class="flex h-screen overflow-hidden">
+
+  <!-- ══════════════════ SIDEBAR ══════════════════ -->
+  <div id="scrim" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] hidden lg:hidden"></div>
+
+  <aside id="sidebar"
+    class="fixed lg:static inset-y-0 left-0 z-[90] w-72 shrink-0 bg-white dark:bg-ink-800
+           border-r border-brand-olive/10 dark:border-white/5
+           -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-out
+           flex flex-col">
+
+    <div class="h-16 flex items-center justify-between px-6 border-b border-brand-olive/10 dark:border-white/5">
+      <h1 class="text-lg font-extrabold tracking-tighter text-brand-olive dark:text-brand-cream">
+        FIX <span class="text-brand-gold">ZEN</span>
+        <span class="text-[9px] uppercase tracking-[0.3em] ml-1.5 opacity-40">Admin</span>
+      </h1>
+      <button id="closeSidebar" class="lg:hidden text-brand-olive/50 hover:text-brand-olive dark:text-white/40">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-4 py-6 space-y-1.5">
+      <p class="px-3 pb-2 text-[9px] font-black uppercase tracking-[0.2em] text-brand-dark/35 dark:text-white/25">Operations</p>
+
+      <a href="#" class="nav-link active">
+        <i class="fa-solid fa-users-gear w-5 text-center"></i><span>Technician Approval</span>
+      </a>
+      <a href="admin-jobs.html" class="nav-link">
+        <i class="fa-solid fa-clipboard-list w-5 text-center"></i><span>Booking Logs</span>
+      </a>
+      <a href="admin-dashboard.html" class="nav-link">
+        <i class="fa-solid fa-chart-pie w-5 text-center"></i><span>Analytics Dashboard</span>
+      </a>
+      <a href="admin-analytics.html" class="nav-link">
+        <i class="fa-solid fa-chart-line w-5 text-center"></i><span>Financial & Efficiency</span>
+      </a>
+
+      <p class="px-3 pt-5 pb-2 text-[9px] font-black uppercase tracking-[0.2em] text-brand-dark/35 dark:text-white/25">Management</p>
+
+      <a href="admin-users.html" class="nav-link">
+        <i class="fa-solid fa-user-group w-5 text-center"></i><span>Customer Management</span>
+      </a>
+      <a href="fz-technician-admin.html" class="nav-link">
+        <i class="fa-solid fa-screwdriver-wrench w-5 text-center"></i><span>Technician Roster</span>
+      </a>
+      <a href="admin-pricing.html" class="nav-link">
+        <i class="fa-solid fa-tags w-5 text-center"></i><span>Service Pricing</span>
+      </a>
+      <a href="admin-payouts.html" class="nav-link">
+        <i class="fa-solid fa-wallet w-5 text-center"></i><span>Partner Payouts</span>
+      </a>
+      <a href="adminfeedback.html" class="nav-link">
+        <i class="fa-solid fa-star w-5 text-center"></i><span>Feedback & Reviews</span>
+      </a>
+
+      <p class="px-3 pt-5 pb-2 text-[9px] font-black uppercase tracking-[0.2em] text-brand-dark/35 dark:text-white/25">System</p>
+      <a href="index.html" class="nav-link">
+        <i class="fa-solid fa-house w-5 text-center"></i><span>Public Site</span>
+      </a>
+    </nav>
+
+    <div class="p-4 border-t border-brand-olive/10 dark:border-white/5">
+      <div class="flex items-center gap-3 p-3 rounded-2xl bg-brand-cream/60 dark:bg-white/5">
+        <img src="https://ui-avatars.com/api/?background=5D5646&color=fff&name=Admin" class="w-9 h-9 rounded-xl">
+        <div class="min-w-0 flex-1">
+          <p class="text-xs font-bold truncate text-brand-olive dark:text-brand-cream">Administrator</p>
+          <p class="text-[10px] text-brand-dark/45 dark:text-white/35 truncate">Full access</p>
         </div>
-        
-        <div class="flex items-center gap-4">
-            <button onclick="location.reload()" class="p-2 hover:bg-brand-cream rounded-full transition-colors">
-                <i class="fa-solid fa-rotate text-brand-olive"></i>
-            </button>
-            <div class="w-10 h-10 rounded-full border-2 border-brand-gold p-0.5">
-                <img src="https://ui-avatars.com/api/?background=5D5646&color=fff&name=Admin" class="rounded-full">
-            </div>
+        <button onclick="alert('Logout')" class="text-red-400 hover:text-red-500 transition-colors" title="Logout">
+          <i class="fa-solid fa-arrow-right-from-bracket text-sm"></i>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══════════════════ MAIN ══════════════════ -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- ── TOPBAR ── -->
+    <header class="h-16 shrink-0 bg-white/80 dark:bg-ink-800/80 backdrop-blur-xl border-b border-brand-olive/10 dark:border-white/5
+                   px-4 sm:px-6 flex items-center gap-3 z-40">
+
+      <button id="menuBtn" class="lg:hidden text-brand-olive dark:text-brand-cream/70 hover:scale-110 transition-transform">
+        <i class="fa-solid fa-bars-staggered text-lg"></i>
+      </button>
+
+      <!-- search -->
+      <div class="relative flex-1 max-w-md">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-dark/30 dark:text-white/25 text-xs"></i>
+        <input id="searchInput" type="text" placeholder="Search name, phone, category…"
+          class="w-full pl-9 pr-16 py-2.5 rounded-xl text-sm bg-brand-cream/70 dark:bg-white/5
+                 border border-transparent focus:border-brand-gold/40 focus:bg-white dark:focus:bg-white/10
+                 outline-none transition-all placeholder:text-brand-dark/30 dark:placeholder:text-white/25">
+        <kbd class="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded-md
+                    text-[10px] font-mono font-bold bg-white dark:bg-white/10 border border-brand-olive/15 dark:border-white/10
+                    text-brand-dark/40 dark:text-white/35">/</kbd>
+      </div>
+
+      <div class="ml-auto flex items-center gap-1.5 sm:gap-2">
+        <!-- live indicator -->
+        <div id="liveBadge" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-cream/70 dark:bg-white/5">
+          <span id="liveDot" class="w-2 h-2 rounded-full bg-gray-400"></span>
+          <span id="liveText" class="text-[10px] font-bold uppercase tracking-wider text-brand-dark/50 dark:text-white/40">Offline</span>
         </div>
-        
+
+        <button id="refreshBtn" title="Refresh data"
+          class="w-9 h-9 rounded-xl flex items-center justify-center text-brand-olive dark:text-brand-cream/70
+                 hover:bg-brand-cream dark:hover:bg-white/10 transition-colors">
+          <i id="refreshIcon" class="fa-solid fa-rotate text-sm"></i>
+        </button>
+
+        <button id="exportBtn" title="Export CSV"
+          class="w-9 h-9 rounded-xl flex items-center justify-center text-brand-olive dark:text-brand-cream/70
+                 hover:bg-brand-cream dark:hover:bg-white/10 transition-colors">
+          <i class="fa-solid fa-file-arrow-down text-sm"></i>
+        </button>
+
+        <button id="themeToggle" title="Toggle theme"
+          class="w-9 h-9 rounded-xl flex items-center justify-center text-brand-olive dark:text-brand-cream/70
+                 hover:bg-brand-cream dark:hover:bg-white/10 transition-colors">
+          <i id="themeIcon" class="fa-solid fa-moon text-sm"></i>
+        </button>
+      </div>
     </header>
 
-    <main class="max-w-6xl mx-auto p-6 pb-32">
-        
-        <div class="mb-10">
-            <h2 class="text-3xl font-bold text-brand-olive">Command Center</h2>
-            <p class="text-brand-dark/60 text-sm">Overseeing technician registrations and platform health.</p>
+    <!-- ── SCROLL AREA ── -->
+    <main class="flex-1 overflow-y-auto">
+
+      <div class="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 pb-40">
+
+        <!-- heading -->
+        <div class="mb-7 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-brand-olive dark:text-brand-cream tracking-tight">Command Center</h2>
+            <p class="text-brand-dark/55 dark:text-white/40 text-sm mt-1">
+              Overseeing technician registrations &amp; platform health.
+            </p>
+          </div>
+          <div class="text-right">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-brand-dark/35 dark:text-white/25">Last sync</p>
+            <p id="lastSync" class="text-xs font-mono font-semibold text-brand-olive dark:text-brand-gold">—</p>
+          </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-white flex flex-col items-center justify-center group hover:border-yellow-500/30 transition-all">
-                <div class="w-12 h-12 bg-yellow-50 rounded-2xl flex items-center justify-center text-yellow-600 mb-4 group-hover:scale-110 transition-transform">
-                    <i class="fa-solid fa-clock-rotate-left text-xl"></i>
-                </div>
-                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Pending Verification</p>
-                <p id="pendingCount" class="text-4xl font-extrabold text-brand-olive mt-1">0</p>
-            </div>
+        <!-- ── STAT CARDS ── -->
+        <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-5 mb-6">
 
-            <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-white flex flex-col items-center justify-center group hover:border-green-500/30 transition-all">
-                <div class="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600 mb-4 group-hover:scale-110 transition-transform">
-                    <i class="fa-solid fa-user-check text-xl"></i>
-                </div>
-                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Active Partners</p>
-                <p id="approvedCount" class="text-4xl font-extrabold text-brand-olive mt-1">0</p>
+          <div class="stat-card group">
+            <div class="flex items-start justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-brand-olive/10 text-brand-olive dark:text-brand-gold dark:bg-brand-gold/10 flex items-center justify-center">
+                <i class="fa-solid fa-users text-sm"></i>
+              </div>
+              <span class="text-[9px] font-black uppercase tracking-widest text-brand-dark/30 dark:text-white/25">Total</span>
             </div>
+            <p id="totalCount" class="text-3xl font-extrabold text-brand-olive dark:text-brand-cream tabular-nums">0</p>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-brand-dark/40 dark:text-white/35 mt-1">Applications</p>
+          </div>
 
-            <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-white flex flex-col items-center justify-center group hover:border-red-500/30 transition-all">
-                <div class="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 mb-4 group-hover:scale-110 transition-transform">
-                    <i class="fa-solid fa-user-xmark text-xl"></i>
-                </div>
-                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rejected Applications</p>
-                <p id="rejectedCount" class="text-4xl font-extrabold text-brand-olive mt-1">0</p>
+          <div class="stat-card group hover:border-yellow-500/40">
+            <div class="flex items-start justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 flex items-center justify-center">
+                <i class="fa-solid fa-clock-rotate-left text-sm"></i>
+              </div>
+              <span class="text-[9px] font-black uppercase tracking-widest text-yellow-600/70 dark:text-yellow-400/60">Action</span>
             </div>
+            <p id="pendingCount" class="text-3xl font-extrabold text-brand-olive dark:text-brand-cream tabular-nums">0</p>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-brand-dark/40 dark:text-white/35 mt-1">Pending</p>
+            <div class="mt-3 h-1 rounded-full bg-yellow-100 dark:bg-white/10 overflow-hidden">
+              <div id="pendingBar" class="h-full bg-yellow-500 rounded-full transition-all duration-700" style="width:0%"></div>
+            </div>
+          </div>
+
+          <div class="stat-card group hover:border-green-500/40">
+            <div class="flex items-start justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 flex items-center justify-center">
+                <i class="fa-solid fa-user-check text-sm"></i>
+              </div>
+              <span class="text-[9px] font-black uppercase tracking-widest text-green-600/70 dark:text-green-400/60">Active</span>
+            </div>
+            <p id="approvedCount" class="text-3xl font-extrabold text-brand-olive dark:text-brand-cream tabular-nums">0</p>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-brand-dark/40 dark:text-white/35 mt-1">Approved</p>
+            <div class="mt-3 h-1 rounded-full bg-green-100 dark:bg-white/10 overflow-hidden">
+              <div id="approvedBar" class="h-full bg-green-500 rounded-full transition-all duration-700" style="width:0%"></div>
+            </div>
+          </div>
+
+          <div class="stat-card group hover:border-red-500/40">
+            <div class="flex items-start justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center">
+                <i class="fa-solid fa-user-xmark text-sm"></i>
+              </div>
+              <span class="text-[9px] font-black uppercase tracking-widest text-red-600/70 dark:text-red-400/60">Declined</span>
+            </div>
+            <p id="rejectedCount" class="text-3xl font-extrabold text-brand-olive dark:text-brand-cream tabular-nums">0</p>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-brand-dark/40 dark:text-white/35 mt-1">Rejected</p>
+            <div class="mt-3 h-1 rounded-full bg-red-100 dark:bg-white/10 overflow-hidden">
+              <div id="rejectedBar" class="h-full bg-red-500 rounded-full transition-all duration-700" style="width:0%"></div>
+            </div>
+          </div>
         </div>
 
-        <div class="bg-white rounded-[2.5rem] shadow-super-float overflow-hidden border border-white/50">
-            <div class="px-8 py-6 border-b border-brand-cream flex justify-between items-center bg-gray-50/50">
-                <h3 class="font-bold text-brand-olive">Partnership Requests</h3>
-                <div class="flex gap-2">
-                    <span class="px-3 py-1 bg-brand-olive text-white text-[10px] font-bold rounded-full uppercase tracking-tighter">Live Updates</span>
+        <!-- ── CHARTS ── -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-5 mb-6">
+
+          <!-- donut -->
+          <div class="lg:col-span-2 bg-white dark:bg-ink-800 rounded-3xl border border-white dark:border-white/5 shadow-sm p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-bold text-brand-olive dark:text-brand-cream text-sm">Status Distribution</h3>
+              <i class="fa-solid fa-chart-pie text-brand-gold/50 text-xs"></i>
+            </div>
+            <div class="flex items-center gap-6">
+              <div class="relative shrink-0">
+                <svg id="donutChart" viewBox="0 0 42 42" class="w-32 h-32 -rotate-90"></svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span id="donutTotal" class="text-xl font-extrabold text-brand-olive dark:text-brand-cream tabular-nums">0</span>
+                  <span class="text-[8px] font-black uppercase tracking-widest text-brand-dark/35 dark:text-white/30">Total</span>
                 </div>
+              </div>
+              <div id="donutLegend" class="flex-1 space-y-2.5"></div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="text-brand-dark/40 border-b border-brand-cream">
-                            <th class="px-8 py-5 text-[10px] font-bold uppercase tracking-widest">Technician Profile</th>
-                            <th class="px-8 py-5 text-[10px] font-bold uppercase tracking-widest">Category</th>
-                            <th class="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-center">Status</th>
-                            <th class="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="techList" class="divide-y divide-brand-cream/50">
-                        </tbody>
-                </table>
+          </div>
+
+          <!-- trend -->
+          <div class="lg:col-span-3 bg-white dark:bg-ink-800 rounded-3xl border border-white dark:border-white/5 shadow-sm p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="font-bold text-brand-olive dark:text-brand-cream text-sm">New Registrations</h3>
+                <p class="text-[10px] text-brand-dark/40 dark:text-white/30 mt-0.5">Last 7 days</p>
+              </div>
+              <span id="trendTotal" class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-brand-gold/10 text-brand-gold">0 this week</span>
             </div>
+            <div id="trendChart" class="flex items-end justify-between gap-2 h-32"></div>
+          </div>
         </div>
+
+        <!-- ── TABLE CARD ── -->
+        <div class="bg-white dark:bg-ink-800 rounded-3xl shadow-super-float dark:shadow-none border border-white/60 dark:border-white/5 overflow-hidden">
+
+          <!-- toolbar -->
+          <div class="px-5 sm:px-7 py-5 border-b border-brand-cream dark:border-white/5 flex flex-wrap items-center gap-3">
+
+            <div class="mr-auto">
+              <h3 class="font-bold text-brand-olive dark:text-brand-cream">Partnership Requests</h3>
+              <p class="text-[10px] text-brand-dark/40 dark:text-white/30 mt-0.5">
+                <span id="tableCount">0</span> records
+              </p>
+            </div>
+
+            <!-- status segmented -->
+            <div id="statusFilter" class="flex items-center gap-1 p-1 rounded-xl bg-brand-cream/70 dark:bg-white/5">
+              <button data-status="all"      class="seg-btn">All</button>
+              <button data-status="pending"  class="seg-btn">Pending</button>
+              <button data-status="approved" class="seg-btn">Approved</button>
+              <button data-status="rejected" class="seg-btn">Rejected</button>
+            </div>
+
+            <!-- category -->
+            <select id="categoryFilter"
+              class="px-3 py-2 rounded-xl text-xs font-semibold bg-brand-cream/70 dark:bg-white/5 border border-transparent
+                     focus:border-brand-gold/40 outline-none cursor-pointer text-brand-dark/70 dark:text-white/70">
+              <option value="all">All Categories</option>
+            </select>
+
+            <!-- sort -->
+            <select id="sortSelect"
+              class="px-3 py-2 rounded-xl text-xs font-semibold bg-brand-cream/70 dark:bg-white/5 border border-transparent
+                     focus:border-brand-gold/40 outline-none cursor-pointer text-brand-dark/70 dark:text-white/70">
+              <option value="created_at:desc">Newest first</option>
+              <option value="created_at:asc">Oldest first</option>
+              <option value="name:asc">Name A–Z</option>
+              <option value="name:desc">Name Z–A</option>
+              <option value="status:asc">Status</option>
+            </select>
+          </div>
+
+          <!-- bulk bar -->
+          <div id="bulkBar" class="hidden px-5 sm:px-7 py-3 bg-brand-olive dark:bg-brand-gold/15 border-b border-brand-olive/20 dark:border-white/5
+                                   flex items-center gap-3 animate-popin">
+            <span class="w-7 h-7 rounded-lg bg-brand-gold text-white flex items-center justify-center text-xs font-black">
+              <span id="bulkCount">0</span>
+            </span>
+            <span class="text-xs font-bold text-white dark:text-brand-cream/90">selected</span>
+            <div class="ml-auto flex flex-wrap items-center gap-2">
+              <button id="bulkApprove" class="bulk-btn bg-green-500/90 hover:bg-green-500 text-white">
+                <i class="fa-solid fa-check"></i> Approve
+              </button>
+              <button id="bulkReject" class="bulk-btn bg-red-500/90 hover:bg-red-500 text-white">
+                <i class="fa-solid fa-xmark"></i> Reject
+              </button>
+              <button id="bulkExport" class="bulk-btn bg-white/15 hover:bg-white/25 text-white">
+                <i class="fa-solid fa-download"></i> Export
+              </button>
+              <button id="bulkClear" class="bulk-btn bg-transparent hover:bg-white/10 text-white/70">
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <!-- table -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[820px]">
+              <thead>
+                <tr class="text-brand-dark/40 dark:text-white/30 border-b border-brand-cream dark:border-white/5 bg-gray-50/50 dark:bg-white/[0.02]">
+                  <th class="pl-5 sm:pl-7 pr-2 py-4 w-10">
+                    <input type="checkbox" id="selectAll" class="fz">
+                  </th>
+                  <th class="px-4 py-4 text-[10px] font-bold uppercase tracking-widest">Technician</th>
+                  <th class="px-4 py-4 text-[10px] font-bold uppercase tracking-widest">Category</th>
+                  <th class="px-4 py-4 text-[10px] font-bold uppercase tracking-widest">Applied</th>
+                  <th class="px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-center">Status</th>
+                  <th class="pr-5 sm:pr-7 pl-4 py-4 text-[10px] font-bold uppercase tracking-widest text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="techList" class="divide-y divide-brand-cream/60 dark:divide-white/5"></tbody>
+            </table>
+          </div>
+
+          <!-- empty -->
+          <div id="emptyState" class="hidden flex-col items-center justify-center py-20 px-6 text-center">
+            <div class="w-16 h-16 rounded-3xl bg-brand-cream dark:bg-white/5 flex items-center justify-center mb-4">
+              <i class="fa-solid fa-inbox text-2xl text-brand-dark/20 dark:text-white/20"></i>
+            </div>
+            <p class="font-bold text-brand-olive dark:text-brand-cream">No technicians found</p>
+            <p class="text-xs text-brand-dark/45 dark:text-white/35 mt-1 max-w-xs">
+              Try adjusting your search or filters to find what you're looking for.
+            </p>
+            <button id="clearFilters" class="mt-5 px-5 py-2.5 rounded-xl bg-brand-olive text-white text-xs font-bold hover:bg-brand-gold transition-colors">
+              Clear all filters
+            </button>
+          </div>
+
+          <!-- pagination -->
+          <div class="px-5 sm:px-7 py-4 border-t border-brand-cream dark:border-white/5 flex flex-wrap items-center gap-3">
+            <p id="pageInfo" class="text-[11px] text-brand-dark/45 dark:text-white/35 font-medium">—</p>
+            <div class="ml-auto flex items-center gap-3">
+              <select id="perPage"
+                class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-brand-cream/70 dark:bg-white/5 border border-transparent
+                       outline-none cursor-pointer text-brand-dark/60 dark:text-white/60">
+                <option value="5">5 / page</option>
+                <option value="8" selected>8 / page</option>
+                <option value="15">15 / page</option>
+                <option value="25">25 / page</option>
+                <option value="50">50 / page</option>
+              </select>
+              <div class="flex items-center gap-1">
+                <button id="prevPage" class="page-nav"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>
+                <div id="pageNumbers" class="flex items-center gap-1"></div>
+                <button id="nextPage" class="page-nav"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-center text-[10px] text-brand-dark/25 dark:text-white/20 mt-8 font-medium">
+          FixZen Admin Console · Press <kbd class="px-1.5 py-0.5 rounded bg-white dark:bg-white/10 border border-brand-olive/15 dark:border-white/10 font-mono">/</kbd> to search ·
+          <kbd class="px-1.5 py-0.5 rounded bg-white dark:bg-white/10 border border-brand-olive/15 dark:border-white/10 font-mono">Esc</kbd> to close panels
+        </p>
+      </div>
     </main>
-
-    <div class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-50">
-    <div class="bg-brand-olive/95 backdrop-blur-xl rounded-full p-2 flex justify-between items-center shadow-2xl border border-white/10">
-        <a href="admin.html" class="w-12 h-12 flex items-center justify-center text-white/50 hover:text-brand-gold transition-colors">
-            <i class="fa-solid fa-users-gear text-xl"></i>
-        </a>
-        
-        <a href="admin-jobs.html" class="bg-brand-gold text-white px-6 py-3 rounded-full flex items-center gap-2 transition-all shadow-lg">
-            <i class="fa-solid fa-calendar-check"></i>
-            <span class="text-xs font-bold">Manage Jobs</span>
-        </a>
-
-        <a href="index.html" class="w-12 h-12 flex items-center justify-center text-white/50 hover:text-brand-gold transition-colors">
-            <i class="fa-solid fa-eye text-xl"></i>
-        </a>
-    </div>
+  </div>
 </div>
 
-    <div x-show="sidebarOpen" class="fixed inset-0 z-[100]" style="display: none;">
-        <div class="absolute inset-0 bg-brand-olive/60 backdrop-blur-md" @click="sidebarOpen = false"></div>
-        <aside class="absolute left-0 top-0 h-full w-72 bg-white shadow-2xl p-8"
-               x-transition:enter="transition ease-out duration-300 transform"
-               x-transition:enter-start="-translate-x-full"
-               x-transition:enter-end="translate-x-0">
-            <h2 class="font-extrabold text-2xl text-brand-olive mb-10">ADMIN MENU</h2>
-            <nav class="space-y-6">
-                <a href="#" class="flex items-center gap-4 text-brand-olive font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-users-gear w-6"></i> Technician Approval
-                </a>
-                <a href="admin-jobs.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-clipboard-list w-6"></i> Booking Logs
-                </a>
-                 <a href="admin-dashboard.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-clipboard-list w-6"></i>Analytics Dashboard
-                </a>
-                 <a href="admin-analytics.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-clipboard-list w-6"></i> Financial,job & platform efficiency
-                </a>
-                <a href="adminfeedback.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-clipboard-list w-6"></i> Feedback & Reviews 
-                </a>
-                 <a href="admin-users.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-clipboard-list w-6"></i> Customer Management Dashboard
-                </a>
+<!-- ══════════════════ DETAIL DRAWER ══════════════════ -->
+<div id="drawer" class="fixed inset-0 z-[110] hidden">
+  <div id="drawerBackdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm opacity-0 transition-opacity duration-300"></div>
+  <aside id="drawerPanel"
+    class="absolute right-0 top-0 h-full w-full sm:w-[440px] bg-white dark:bg-ink-800 shadow-2xl
+           translate-x-full transition-transform duration-300 ease-out flex flex-col">
 
-                 </a>
-                 <a href="fz-technician-admin.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-clipboard-list w-6"></i> fz-technician-admin
-                </a>
-
-                <a href="admin-pricing.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-clipboard-list w-6"></i> Service Price
-                </a>
-                 <a href="admin-payouts.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-clipboard-list w-6"></i>  Partner Payouts
-                </a>
-                <a href="index.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-house w-6"></i> Public Site
-                </a>
-                <div class="pt-10">
-                    <button class="w-full py-3 rounded-xl bg-red-50 text-red-600 font-bold text-xs uppercase tracking-widest border border-red-100">Logout</button>
-                </div>
-            </nav>
-        </aside>
+    <div class="h-16 shrink-0 flex items-center justify-between px-6 border-b border-brand-cream dark:border-white/5">
+      <h3 class="font-bold text-brand-olive dark:text-brand-cream text-sm">Technician Profile</h3>
+      <button id="drawerClose" class="w-8 h-8 rounded-lg flex items-center justify-center text-brand-dark/40 dark:text-white/40 hover:bg-brand-cream dark:hover:bg-white/10 transition-colors">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module" src="admin.js"></script>
+
+    <div id="drawerBody" class="flex-1 overflow-y-auto p-6"></div>
+
+    <div id="drawerFooter" class="shrink-0 p-4 border-t border-brand-cream dark:border-white/5 flex gap-2"></div>
+  </aside>
+</div>
+
+<!-- ══════════════════ CONFIRM MODAL ══════════════════ -->
+<div id="confirmModal" class="fixed inset-0 z-[120] hidden items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+  <div class="relative w-full max-w-sm bg-white dark:bg-ink-800 rounded-3xl shadow-2xl p-6 animate-popin">
+    <div id="confirmIconWrap" class="w-12 h-12 rounded-2xl flex items-center justify-center mb-4">
+      <i id="confirmIcon" class="fa-solid fa-triangle-exclamation text-lg"></i>
+    </div>
+    <h3 id="confirmTitle" class="text-lg font-extrabold text-brand-olive dark:text-brand-cream">Are you sure?</h3>
+    <p id="confirmMessage" class="text-sm text-brand-dark/60 dark:text-white/45 mt-2 leading-relaxed"></p>
+    <div class="flex gap-2 mt-6">
+      <button id="confirmCancel" class="flex-1 py-3 rounded-xl bg-brand-cream dark:bg-white/5 text-brand-dark/70 dark:text-white/60 text-xs font-bold uppercase tracking-wider hover:bg-brand-cream/70 dark:hover:bg-white/10 transition-colors">
+        Cancel
+      </button>
+      <button id="confirmOk" class="flex-1 py-3 rounded-xl bg-brand-olive text-white text-xs font-bold uppercase tracking-wider hover:bg-brand-gold transition-colors">
+        Confirm
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ TOASTS ══════════════════ -->
+<div id="toasts" class="fixed top-4 right-4 z-[130] flex flex-col gap-2.5 w-[calc(100vw-2rem)] max-w-sm pointer-events-none"></div>
+
+<!-- ══════════════════ FLOATING DOCK ══════════════════ -->
+<div class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-md z-50">
+  <div class="bg-brand-olive/95 dark:bg-ink-700/95 backdrop-blur-xl rounded-full p-1.5 flex justify-between items-center shadow-2xl border border-white/10">
+    <a href="admin.html" class="w-11 h-11 flex items-center justify-center text-white/50 hover:text-brand-gold transition-colors" title="Technicians">
+      <i class="fa-solid fa-users-gear"></i>
+    </a>
+    <a href="admin-jobs.html" class="bg-brand-gold text-white px-6 py-2.5 rounded-full flex items-center gap-2 shadow-lg hover:brightness-110 transition-all">
+      <i class="fa-solid fa-calendar-check text-sm"></i>
+      <span class="text-xs font-bold">Manage Jobs</span>
+    </a>
+    <a href="index.html" class="w-11 h-11 flex items-center justify-center text-white/50 hover:text-brand-gold transition-colors" title="Public site">
+      <i class="fa-solid fa-eye"></i>
+    </a>
+  </div>
+</div>
+
+<script type="module" src="admin.js"></script>
 </body>
 </html>
