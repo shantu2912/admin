@@ -241,7 +241,7 @@ document.addEventListener('alpine:init', () => {
 
             ctx.fillStyle = '#FFFFFF';
             ctx.font = '700 42px -apple-system, Segoe UI, Roboto, sans-serif';
-            ctx.fillText('FixZen', 40, 70);
+            ctx.fillText('FixZenix', 40, 70);
             ctx.font = '600 20px -apple-system, Segoe UI, Roboto, sans-serif';
             ctx.fillText('VERIFIED SERVICE PARTNER', 40, 105);
 
