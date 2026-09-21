@@ -1,1691 +1,194 @@
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FixZen · Admin Console</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FixZen Admin - Management Console</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
 
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-
-<script>
-  tailwind.config = {
-    darkMode: 'class',
-    theme: {
-      extend: {
-        fontFamily: {
-          sans: ['Inter', 'system-ui', 'sans-serif'],
-          mono: ['"JetBrains Mono"', 'monospace'],
-        },
-        colors: {
-          olive: { 50:'#f7f6f3', 100:'#eeeae2', 200:'#ddd6c6', 300:'#c4b8a0', 400:'#a89477', 500:'#8a7458', 600:'#5D5646', 700:'#4a4438', 800:'#3a352c', 900:'#2a271f' },
-          gold:  { 400:'#c49a63', 500:'#A07D54', 600:'#876744' },
-          ink:   { 900:'#0a0a09', 800:'#111110', 700:'#181816', 600:'#1f1f1c', 500:'#2a2a26' }
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-olive': '#5D5646',
+                        'brand-gold': '#A07D54',
+                        'brand-cream': '#EEEAE2',
+                        'brand-dark': '#4D4C4B',
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        serif: ['"Playfair Display"', 'serif'],
+                    },
+                    boxShadow: {
+                        'super-float': '0 30px 60px -15px rgba(93, 86, 70, 0.25)',
+                    }
+                }
+            }
         }
-      }
-    }
-  }
-</script>
-
-<style>
-  * { -webkit-tap-highlight-color: transparent; }
-  body { font-feature-settings: "cv02","cv03","cv04","cv11"; }
-
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(93,86,70,.2); border-radius: 99px; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(160,125,84,.5); }
-  .dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); }
-  .dark ::-webkit-scrollbar-thumb:hover { background: rgba(196,154,99,.4); }
-
-  @keyframes shimmer { 100% { transform: translateX(100%); } }
-  @keyframes popIn { 0% { opacity:0; transform: translateY(6px) scale(.98); } 100% { opacity:1; transform: translateY(0) scale(1); } }
-  @keyframes slideInRight { 0% { opacity:0; transform: translateX(120%); } 100% { opacity:1; transform: translateX(0); } }
-  @keyframes slideOutRight { 0% { opacity:1; transform: translateX(0); } 100% { opacity:0; transform: translateX(120%); } }
-  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-  @keyframes spinSlow { to { transform: rotate(360deg); } }
-
-  .anim-pop { animation: popIn .3s cubic-bezier(.2,.9,.3,1.15) both; }
-  .anim-fade { animation: fadeIn .3s ease both; }
-  .anim-slide-in { animation: slideInRight .35s cubic-bezier(.2,.9,.3,1.1) both; }
-  .anim-slide-out { animation: slideOutRight .3s cubic-bezier(.5,0,.7,.2) both; }
-  .spin { animation: spinSlow .9s linear infinite; }
-
-  .skeleton { position: relative; overflow: hidden; background: rgba(93,86,70,.08); border-radius: 6px; }
-  .dark .skeleton { background: rgba(255,255,255,.05); }
-  .skeleton::after {
-    content:''; position:absolute; inset:0; transform: translateX(-100%);
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent);
-    animation: shimmer 1.5s infinite;
-  }
-  .dark .skeleton::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent); }
-
-  [x-cloak] { display: none !important; }
-
-  input[type="checkbox"].fz {
-    appearance: none; width: 17px; height: 17px; border-radius: 5px; cursor: pointer;
-    border: 1.5px solid rgba(93,86,70,.28); background: transparent; position: relative;
-    transition: all .15s ease; flex-shrink: 0;
-  }
-  .dark input[type="checkbox"].fz { border-color: rgba(255,255,255,.2); }
-  input[type="checkbox"].fz:hover { border-color: #A07D54; }
-  input[type="checkbox"].fz:checked { background: #5D5646; border-color: #5D5646; }
-  .dark input[type="checkbox"].fz:checked { background: #A07D54; border-color: #A07D54; }
-  input[type="checkbox"].fz:checked::after {
-    content:''; position:absolute; left:5px; top:1.5px; width:5px; height:10px;
-    border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
-  }
-  input[type="checkbox"].fz:indeterminate { background:#A07D54; border-color:#A07D54; }
-  input[type="checkbox"].fz:indeterminate::after {
-    content:''; position:absolute; left:3.5px; top:7px; width:8px; height:2px; background:#fff; border-radius:2px;
-  }
-
-  .seg-active {
-    background: white !important;
-    color: #5D5646 !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
-  }
-  .dark .seg-active { background: #2a2a26 !important; color: #eeeae2 !important; }
-
-  .row-selected { background: rgba(160,125,84,.06) !important; }
-  .dark .row-selected { background: rgba(196,154,99,.06) !important; }
-
-  tr.tech-row { transition: background-color .12s ease; }
-  tr.tech-row:hover { background: rgba(93,86,70,.025); }
-  .dark tr.tech-row:hover { background: rgba(255,255,255,.02); }
-
-  .kbd { display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; padding: 0 5px;
-    font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600;
-    border-radius: 5px; border: 1px solid rgba(93,86,70,.15); background: rgba(255,255,255,.7); color: rgba(93,86,70,.6); }
-  .dark .kbd { border-color: rgba(255,255,255,.1); background: rgba(255,255,255,.05); color: rgba(255,255,255,.5); }
-
-  .drawer-scroll { scrollbar-width: thin; }
-
-  /* Smooth fade of the scrim */
-  #drawerScrim, #mobileScrim { transition: opacity .3s ease; }
-
-  /* Focus visible ring */
-  button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible {
-    outline: 2px solid rgba(160,125,84,.5); outline-offset: 2px;
-  }
-
-  /* Hide native select arrow on specific custom selects */
-  select.appearance-none-custom { -webkit-appearance: none; appearance: none; background-image: none; }
-</style>
+    </script>
 </head>
 
-<body class="font-sans bg-olive-100 dark:bg-ink-900 text-olive-800 dark:text-olive-100 antialiased transition-colors duration-300">
+<body class="bg-brand-cream text-brand-dark antialiased font-sans" x-data="{ sidebarOpen: false }">
 
-<!-- ══════════════════════════════════════════
-     APP SHELL
-════════════════════════════════════════════ -->
-<div class="flex h-screen overflow-hidden">
-
-  <!-- mobile scrim -->
-  <div id="mobileScrim" class="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-40 hidden lg:hidden opacity-0"></div>
-
-  <!-- ═══════════════ SIDEBAR ═══════════════ -->
-  <aside id="sidebar"
-    class="fixed lg:relative inset-y-0 left-0 z-50 w-[260px] shrink-0 bg-white dark:bg-ink-800
-           border-r border-olive-600/8 dark:border-white/5
-           -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-out
-           flex flex-col">
-
-    <!-- Brand -->
-    <div class="h-[68px] shrink-0 flex items-center gap-2.5 px-5 border-b border-olive-600/8 dark:border-white/5">
-      <div class="w-8 h-8 rounded-lg bg-olive-600 dark:bg-gold-500 flex items-center justify-center shadow-sm">
-        <i class="fa-solid fa-bolt text-white text-[13px]"></i>
-      </div>
-      <div class="flex-1 min-w-0">
-        <p class="text-[15px] font-extrabold tracking-tight text-olive-700 dark:text-white leading-none">
-          Fix<span class="text-gold-500">Zen</span>
-        </p>
-        <p class="text-[9px] font-bold uppercase tracking-[.18em] text-olive-800/40 dark:text-white/30 mt-1">Admin Console</p>
-      </div>
-      <button id="closeSidebar" class="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center text-olive-800/50 dark:text-white/40 hover:bg-olive-100 dark:hover:bg-white/5 transition-colors">
-        <i class="fa-solid fa-xmark text-sm"></i>
-      </button>
-    </div>
-
-    <!-- Nav -->
-    <nav class="flex-1 overflow-y-auto px-3 py-5">
-      <p class="px-3 pb-2 text-[10px] font-bold uppercase tracking-[.16em] text-olive-800/35 dark:text-white/25">Workspace</p>
-
-      <a href="admin-jobs.html" class="nav-link">
-        <i class="fa-solid fa-clipboard-list w-5 text-center text-[14px]"></i>
-        <span>Bookings</span>
-      </a>
-      <a href="admin-users.html" class="nav-link">
-        <i class="fa-solid fa-users w-5 text-center text-[14px]"></i>
-        <span>Customers</span>
-      </a>
-
-      <p class="px-3 pt-5 pb-2 text-[10px] font-bold uppercase tracking-[.16em] text-olive-800/35 dark:text-white/25">Analytics</p>
-
-      <a href="admin-dashboard.html" class="nav-link">
-        <i class="fa-solid fa-chart-pie w-5 text-center text-[14px]"></i>
-        <span>Dashboard</span>
-      </a>
-      <a href="admin-analytics.html" class="nav-link">
-        <i class="fa-solid fa-chart-line w-5 text-center text-[14px]"></i>
-        <span>Efficiency</span>
-      </a>
-      <a href="admin-payouts.html" class="nav-link">
-        <i class="fa-solid fa-wallet w-5 text-center text-[14px]"></i>
-        <span>Payouts</span>
-      </a>
-
-      <p class="px-3 pt-5 pb-2 text-[10px] font-bold uppercase tracking-[.16em] text-olive-800/35 dark:text-white/25">Configuration</p>
-
-      <a href="admin-pricing.html" class="nav-link">
-        <i class="fa-solid fa-tags w-5 text-center text-[14px]"></i>
-        <span>Pricing</span>
-      </a>
-
-      <a href="fz-technician-admin.html" class="nav-link">
-        <i class="fa-solid fa-tags w-5 text-center text-[14px]"></i>
-        <span>Technician Data</span>
-      </a>
-
-        <a href="admin_banner.html" class="nav-link">
-        <i class="fa-solid fa-tags w-5 text-center text-[14px]"></i>
-        <span>Banner</span>
-      </a>
-
-        <a href="admin_ticker.html" class="nav-link">
-        <i class="fa-solid fa-tags w-5 text-center text-[14px]"></i>
-        <span>Ticker</span>
-      </a>
-      
-      <a href="adminfeedback.html" class="nav-link">
-        <i class="fa-solid fa-star w-5 text-center text-[14px]"></i>
-        <span>Reviews</span>
-      </a>
-      <a href="index.html" class="nav-link">
-        <i class="fa-solid fa-arrow-up-right-from-square w-5 text-center text-[14px]"></i>
-        <span>Public Site</span>
-      </a>
-    </nav>
-
-    <!-- User card -->
-    <div class="shrink-0 p-3 border-t border-olive-600/8 dark:border-white/5">
-      <div class="flex items-center gap-3 p-2.5 rounded-xl bg-olive-50 dark:bg-white/5">
-        <div class="relative">
-          <img src="https://ui-avatars.com/api/?background=5D5646&color=fff&name=A&bold=true" class="w-9 h-9 rounded-lg">
-          <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-white dark:border-ink-800"></span>
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-brand-olive/10 px-6 py-4 flex justify-between items-center">
+        <div class="flex items-center gap-4">
+            <button @click="sidebarOpen = true" class="text-brand-olive hover:scale-110 transition-transform">
+                <i class="fa-solid fa-bars-staggered text-xl"></i>
+            </button>
+            <h1 class="text-xl font-extrabold tracking-tighter text-brand-olive">
+                FIX <span class="text-brand-gold">ZEN</span> <span class="text-[10px] uppercase tracking-[0.3em] ml-2 opacity-50">Admin</span>
+            </h1>
         </div>
-        <div class="min-w-0 flex-1">
-          <p class="text-[12px] font-bold text-olive-700 dark:text-white truncate leading-tight">Administrator</p>
-          <p class="text-[10px] text-olive-800/50 dark:text-white/40 truncate leading-tight mt-0.5">admin@fixzen.io</p>
+        
+        <div class="flex items-center gap-4">
+            <button onclick="location.reload()" class="p-2 hover:bg-brand-cream rounded-full transition-colors">
+                <i class="fa-solid fa-rotate text-brand-olive"></i>
+            </button>
+            <div class="w-10 h-10 rounded-full border-2 border-brand-gold p-0.5">
+                <img src="https://ui-avatars.com/api/?background=5D5646&color=fff&name=Admin" class="rounded-full">
+            </div>
         </div>
-        <button id="logoutBtn" class="w-8 h-8 rounded-lg flex items-center justify-center text-red-500/70 hover:text-red-500 hover:bg-red-500/10 transition-all" title="Log out">
-          <i class="fa-solid fa-arrow-right-from-bracket text-[12px]"></i>
-        </button>
-      </div>
-    </div>
-  </aside>
-
-  <!-- ═══════════════ MAIN COLUMN ═══════════════ -->
-  <div class="flex-1 flex flex-col min-w-0">
-
-    <!-- ─── TOPBAR ─── -->
-    <header class="h-[68px] shrink-0 bg-white/85 dark:bg-ink-800/85 backdrop-blur-xl
-                   border-b border-olive-600/8 dark:border-white/5
-                   px-4 sm:px-6 flex items-center gap-3 z-30">
-
-      <button id="menuBtn" class="lg:hidden w-9 h-9 rounded-lg flex items-center justify-center text-olive-700 dark:text-white/70 hover:bg-olive-100 dark:hover:bg-white/5 transition-colors">
-        <i class="fa-solid fa-bars-staggered text-[15px]"></i>
-      </button>
-
-      <!-- breadcrumb -->
-      <div class="hidden sm:flex items-center gap-2 text-[13px]">
-        <span class="text-olive-800/45 dark:text-white/35 font-medium">Admin</span>
-        <i class="fa-solid fa-chevron-right text-[9px] text-olive-800/25 dark:text-white/20"></i>
-        <span class="font-bold text-olive-700 dark:text-white">Overview</span>
-      </div>
-
-      <!-- search -->
-      <div class="relative flex-1 max-w-md ml-2">
-        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-olive-800/35 dark:text-white/30 text-[12px]"></i>
-        <input id="searchInput" type="text" placeholder="Search technicians…"
-          class="w-full pl-9 pr-12 py-2 rounded-xl text-[13px] font-medium
-                 bg-olive-100/70 dark:bg-white/5
-                 border border-transparent focus:border-gold-500/40 focus:bg-white dark:focus:bg-white/10
-                 outline-none transition-all duration-200 placeholder:text-olive-800/40 dark:placeholder:text-white/25
-                 text-olive-700 dark:text-white">
-        <span class="absolute right-3 top-1/2 -translate-y-1/2 kbd">/</span>
-      </div>
-
-      <div class="ml-auto flex items-center gap-1">
-        <!-- realtime status -->
-        <div id="realtimeBadge" class="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-olive-100/70 dark:bg-white/5 mr-1">
-          <span id="realtimeDot" class="w-1.5 h-1.5 rounded-full bg-gray-400 transition-colors"></span>
-          <span id="realtimeText" class="text-[10px] font-bold uppercase tracking-wider text-olive-800/50 dark:text-white/40">Offline</span>
-        </div>
-
-        <button id="exportBtn" class="icon-btn" title="Export CSV">
-          <i class="fa-solid fa-download text-[13px]"></i>
-        </button>
-
-        <button id="refreshBtn" class="icon-btn" title="Refresh">
-          <i id="refreshIcon" class="fa-solid fa-rotate text-[13px]"></i>
-        </button>
-
-        <button id="themeToggle" class="icon-btn" title="Toggle theme">
-          <i id="themeIcon" class="fa-solid fa-moon text-[13px]"></i>
-        </button>
-      </div>
+        
     </header>
 
-    <!-- ─── CONTENT ─── -->
-    <main class="flex-1 overflow-y-auto">
-
-      <div class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 pb-40">
-
-        <!-- Page heading -->
-        <div class="flex flex-wrap items-end justify-between gap-4 mb-7">
-          <div>
-            <h1 class="text-[26px] sm:text-[32px] font-extrabold tracking-tight text-olive-700 dark:text-white leading-none">
-              Good <span id="greeting">morning</span>, Admin
-            </h1>
-            <p class="text-olive-800/55 dark:text-white/45 text-[13px] mt-2">
-              Here's what's happening across FixZen today.
-            </p>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="text-right">
-              <p class="text-[10px] font-bold uppercase tracking-[.14em] text-olive-800/35 dark:text-white/30">Last updated</p>
-              <p id="lastSync" class="text-[11px] font-mono font-semibold text-olive-700 dark:text-gold-400 mt-0.5">—</p>
-            </div>
-          </div>
+    <main class="max-w-6xl mx-auto p-6 pb-32">
+        
+        <div class="mb-10">
+            <h2 class="text-3xl font-bold text-brand-olive">Command Center</h2>
+            <p class="text-brand-dark/60 text-sm">Overseeing technician registrations and platform health.</p>
         </div>
 
-        <!-- ═════════ KPI ROW ═════════ -->
-        <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-6">
-
-          <!-- Total -->
-          <div class="kpi-card">
-            <div class="flex items-start justify-between mb-4">
-              <div class="w-9 h-9 rounded-lg bg-olive-600/10 dark:bg-gold-500/10 flex items-center justify-center">
-                <i class="fa-solid fa-layer-group text-olive-600 dark:text-gold-400 text-[13px]"></i>
-              </div>
-              <span class="text-[9px] font-bold uppercase tracking-[.14em] text-olive-800/35 dark:text-white/30">All time</span>
-            </div>
-            <div class="flex items-end justify-between">
-              <div>
-                <p id="totalCount" class="text-[30px] font-extrabold text-olive-700 dark:text-white tabular-nums leading-none">—</p>
-                <p class="text-[11px] font-semibold text-olive-800/50 dark:text-white/40 mt-1.5">Total technicians</p>
-              </div>
-              <div id="totalSpark" class="w-16 h-8"></div>
-            </div>
-          </div>
-
-          <!-- Pending -->
-          <div class="kpi-card">
-            <div class="flex items-start justify-between mb-4">
-              <div class="w-9 h-9 rounded-lg bg-yellow-500/12 dark:bg-yellow-500/15 flex items-center justify-center">
-                <i class="fa-solid fa-hourglass-half text-yellow-600 dark:text-yellow-400 text-[13px]"></i>
-              </div>
-              <span class="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[.14em] text-yellow-600 dark:text-yellow-400">
-                <span class="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse"></span> Action
-              </span>
-            </div>
-            <div class="flex items-end justify-between">
-              <div>
-                <p id="pendingCount" class="text-[30px] font-extrabold text-olive-700 dark:text-white tabular-nums leading-none">—</p>
-                <p class="text-[11px] font-semibold text-olive-800/50 dark:text-white/40 mt-1.5">Awaiting review</p>
-              </div>
-              <div class="w-16 h-8">
-                <div class="flex items-end justify-end gap-0.5 h-full">
-                  <div class="w-1.5 rounded-sm bg-yellow-500/25" style="height:40%"></div>
-                  <div class="w-1.5 rounded-sm bg-yellow-500/40" style="height:65%"></div>
-                  <div class="w-1.5 rounded-sm bg-yellow-500/60" style="height:50%"></div>
-                  <div class="w-1.5 rounded-sm bg-yellow-500" style="height:85%"></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-white flex flex-col items-center justify-center group hover:border-yellow-500/30 transition-all">
+                <div class="w-12 h-12 bg-yellow-50 rounded-2xl flex items-center justify-center text-yellow-600 mb-4 group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-clock-rotate-left text-xl"></i>
                 </div>
-              </div>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Pending Verification</p>
+                <p id="pendingCount" class="text-4xl font-extrabold text-brand-olive mt-1">0</p>
             </div>
-          </div>
 
-          <!-- Approved -->
-          <div class="kpi-card">
-            <div class="flex items-start justify-between mb-4">
-              <div class="w-9 h-9 rounded-lg bg-green-500/12 dark:bg-green-500/15 flex items-center justify-center">
-                <i class="fa-solid fa-circle-check text-green-600 dark:text-green-400 text-[13px]"></i>
-              </div>
-              <span class="text-[9px] font-bold uppercase tracking-[.14em] text-green-600 dark:text-green-400">Active</span>
-            </div>
-            <div class="flex items-end justify-between">
-              <div>
-                <p id="approvedCount" class="text-[30px] font-extrabold text-olive-700 dark:text-white tabular-nums leading-none">—</p>
-                <p class="text-[11px] font-semibold text-olive-800/50 dark:text-white/40 mt-1.5">Approved partners</p>
-              </div>
-              <div class="w-16 h-8">
-                <div class="flex items-end justify-end gap-0.5 h-full">
-                  <div class="w-1.5 rounded-sm bg-green-500/25" style="height:50%"></div>
-                  <div class="w-1.5 rounded-sm bg-green-500/40" style="height:70%"></div>
-                  <div class="w-1.5 rounded-sm bg-green-500/60" style="height:55%"></div>
-                  <div class="w-1.5 rounded-sm bg-green-500" style="height:90%"></div>
+            <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-white flex flex-col items-center justify-center group hover:border-green-500/30 transition-all">
+                <div class="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600 mb-4 group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-user-check text-xl"></i>
                 </div>
-              </div>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Active Partners</p>
+                <p id="approvedCount" class="text-4xl font-extrabold text-brand-olive mt-1">0</p>
             </div>
-          </div>
 
-          <!-- Rejected -->
-          <div class="kpi-card">
-            <div class="flex items-start justify-between mb-4">
-              <div class="w-9 h-9 rounded-lg bg-red-500/12 dark:bg-red-500/15 flex items-center justify-center">
-                <i class="fa-solid fa-circle-xmark text-red-500 dark:text-red-400 text-[13px]"></i>
-              </div>
-              <span class="text-[9px] font-bold uppercase tracking-[.14em] text-red-500 dark:text-red-400">Declined</span>
-            </div>
-            <div class="flex items-end justify-between">
-              <div>
-                <p id="rejectedCount" class="text-[30px] font-extrabold text-olive-700 dark:text-white tabular-nums leading-none">—</p>
-                <p class="text-[11px] font-semibold text-olive-800/50 dark:text-white/40 mt-1.5">Rejected applications</p>
-              </div>
-              <div class="w-16 h-8">
-                <div class="flex items-end justify-end gap-0.5 h-full">
-                  <div class="w-1.5 rounded-sm bg-red-500/25" style="height:30%"></div>
-                  <div class="w-1.5 rounded-sm bg-red-500/40" style="height:45%"></div>
-                  <div class="w-1.5 rounded-sm bg-red-500/60" style="height:35%"></div>
-                  <div class="w-1.5 rounded-sm bg-red-500" style="height:55%"></div>
+            <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-white flex flex-col items-center justify-center group hover:border-red-500/30 transition-all">
+                <div class="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 mb-4 group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-user-xmark text-xl"></i>
                 </div>
-              </div>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rejected Applications</p>
+                <p id="rejectedCount" class="text-4xl font-extrabold text-brand-olive mt-1">0</p>
             </div>
-          </div>
         </div>
 
-        <!-- ═════════ CHARTS ROW ═════════ -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-
-          <!-- Trend -->
-          <div class="lg:col-span-2 rounded-2xl bg-white dark:bg-ink-800 border border-olive-600/8 dark:border-white/5 p-5 sm:p-6 shadow-sm">
-            <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
-              <div>
-                <h3 class="text-[15px] font-extrabold text-olive-700 dark:text-white">Registration Trend</h3>
-                <p class="text-[11px] text-olive-800/45 dark:text-white/35 mt-0.5">Technician signups over the last 14 days</p>
-              </div>
-              <div class="flex items-center gap-1 p-1 rounded-lg bg-olive-100/70 dark:bg-white/5">
-                <button data-range="7" class="range-btn text-[11px] font-bold px-3 py-1.5 rounded-md transition-all text-olive-800/55 dark:text-white/45">7D</button>
-                <button data-range="14" class="range-btn text-[11px] font-bold px-3 py-1.5 rounded-md transition-all text-olive-800/55 dark:text-white/45 seg-active">14D</button>
-                <button data-range="30" class="range-btn text-[11px] font-bold px-3 py-1.5 rounded-md transition-all text-olive-800/55 dark:text-white/45">30D</button>
-              </div>
-            </div>
-            <div id="trendChart" class="h-[200px] flex items-end justify-between gap-1 sm:gap-2">
-              <div class="skeleton w-full h-full"></div>
-            </div>
-          </div>
-
-          <!-- Donut -->
-          <div class="rounded-2xl bg-white dark:bg-ink-800 border border-olive-600/8 dark:border-white/5 p-5 sm:p-6 shadow-sm">
-            <div class="flex items-center justify-between mb-5">
-              <div>
-                <h3 class="text-[15px] font-extrabold text-olive-700 dark:text-white">Status Split</h3>
-                <p class="text-[11px] text-olive-800/45 dark:text-white/35 mt-0.5">Distribution by state</p>
-              </div>
-              <i class="fa-solid fa-chart-pie text-gold-500/50 text-[14px]"></i>
-            </div>
-            <div class="flex flex-col sm:flex-row items-center gap-6">
-              <div class="relative shrink-0">
-                <svg id="donutChart" viewBox="0 0 42 42" class="w-[120px] h-[120px] -rotate-90"></svg>
-                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span id="donutTotal" class="text-[22px] font-extrabold text-olive-700 dark:text-white tabular-nums leading-none">0</span>
-                  <span class="text-[8px] font-bold uppercase tracking-[.16em] text-olive-800/40 dark:text-white/30 mt-1">Total</span>
+        <div class="bg-white rounded-[2.5rem] shadow-super-float overflow-hidden border border-white/50">
+            <div class="px-8 py-6 border-b border-brand-cream flex justify-between items-center bg-gray-50/50">
+                <h3 class="font-bold text-brand-olive">Partnership Requests</h3>
+                <div class="flex gap-2">
+                    <span class="px-3 py-1 bg-brand-olive text-white text-[10px] font-bold rounded-full uppercase tracking-tighter">Live Updates</span>
                 </div>
-              </div>
-              <div id="donutLegend" class="flex-1 w-full space-y-2.5"></div>
             </div>
-          </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-brand-dark/40 border-b border-brand-cream">
+                            <th class="px-8 py-5 text-[10px] font-bold uppercase tracking-widest">Technician Profile</th>
+                            <th class="px-8 py-5 text-[10px] font-bold uppercase tracking-widest">Category</th>
+                            <th class="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-center">Status</th>
+                            <th class="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="techList" class="divide-y divide-brand-cream/50">
+                        </tbody>
+                </table>
+            </div>
         </div>
-
-        <!-- ═════════ TABLE CARD ═════════ -->
-        <div class="rounded-2xl bg-white dark:bg-ink-800 border border-olive-600/8 dark:border-white/5 shadow-sm overflow-hidden">
-
-          <!-- Header -->
-          <div class="px-5 sm:px-6 py-4 border-b border-olive-600/8 dark:border-white/5 flex flex-wrap items-center gap-3">
-            <div class="mr-auto">
-              <h3 class="text-[15px] font-extrabold text-olive-700 dark:text-white">Partnership Requests</h3>
-              <p class="text-[11px] text-olive-800/45 dark:text-white/35 mt-0.5">
-                <span id="tableCount">0</span> technicians · <span id="filteredCount">0</span> shown
-              </p>
-            </div>
-
-            <!-- status filter -->
-            <div id="statusFilter" class="flex items-center gap-0.5 p-1 rounded-xl bg-olive-100/70 dark:bg-white/5">
-              <button data-status="all"      class="seg-btn text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all">All</button>
-              <button data-status="pending"  class="seg-btn text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all">Pending</button>
-              <button data-status="approved" class="seg-btn text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all">Approved</button>
-              <button data-status="rejected" class="seg-btn text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all">Rejected</button>
-            </div>
-
-            <select id="categoryFilter"
-              class="text-[11px] font-semibold px-3 py-2 rounded-lg bg-olive-100/70 dark:bg-white/5
-                     border border-transparent focus:border-gold-500/40 outline-none cursor-pointer
-                     text-olive-800/70 dark:text-white/70">
-              <option value="all">All Categories</option>
-            </select>
-
-            <select id="sortSelect"
-              class="text-[11px] font-semibold px-3 py-2 rounded-lg bg-olive-100/70 dark:bg-white/5
-                     border border-transparent focus:border-gold-500/40 outline-none cursor-pointer
-                     text-olive-800/70 dark:text-white/70">
-              <option value="created_at:desc">Newest first</option>
-              <option value="created_at:asc">Oldest first</option>
-              <option value="name:asc">Name A–Z</option>
-              <option value="name:desc">Name Z–A</option>
-              <option value="status:asc">Status</option>
-            </select>
-          </div>
-
-          <!-- Bulk bar -->
-          <div id="bulkBar" class="hidden px-5 sm:px-6 py-3 bg-olive-600 dark:bg-gold-500/10
-                                   border-b border-olive-600 dark:border-gold-500/20
-                                   flex items-center gap-3 anim-pop">
-            <div class="flex items-center gap-2.5">
-              <span class="w-7 h-7 rounded-lg bg-gold-500 text-white flex items-center justify-center text-[11px] font-extrabold">
-                <span id="bulkCount">0</span>
-              </span>
-              <span class="text-[12px] font-bold text-white">selected</span>
-            </div>
-            <div class="ml-auto flex flex-wrap items-center gap-1.5">
-              <button id="bulkApprove" class="bulk-btn bg-green-500 hover:bg-green-400 text-white">
-                <i class="fa-solid fa-check text-[10px]"></i> Approve
-              </button>
-              <button id="bulkReject" class="bulk-btn bg-red-500 hover:bg-red-400 text-white">
-                <i class="fa-solid fa-xmark text-[10px]"></i> Reject
-              </button>
-              <button id="bulkExport" class="bulk-btn bg-white/15 hover:bg-white/25 text-white">
-                <i class="fa-solid fa-download text-[10px]"></i> Export
-              </button>
-              <button id="bulkClear" class="bulk-btn bg-transparent hover:bg-white/10 text-white/70">
-                Clear
-              </button>
-            </div>
-          </div>
-
-          <!-- Table -->
-          <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse min-w-[820px]">
-              <thead>
-                <tr class="border-b border-olive-600/8 dark:border-white/5 bg-olive-50/50 dark:bg-white/[.015]">
-                  <th class="pl-5 sm:pl-6 pr-2 py-3.5 w-10">
-                    <input type="checkbox" id="selectAll" class="fz">
-                  </th>
-                  <th class="px-3 py-3.5 text-[10px] font-bold uppercase tracking-[.12em] text-olive-800/40 dark:text-white/30">Technician</th>
-                  <th class="px-3 py-3.5 text-[10px] font-bold uppercase tracking-[.12em] text-olive-800/40 dark:text-white/30">Category</th>
-                  <th class="px-3 py-3.5 text-[10px] font-bold uppercase tracking-[.12em] text-olive-800/40 dark:text-white/30">Applied</th>
-                  <th class="px-3 py-3.5 text-[10px] font-bold uppercase tracking-[.12em] text-olive-800/40 dark:text-white/30 text-center">Status</th>
-                  <th class="pr-5 sm:pr-6 pl-3 py-3.5 text-[10px] font-bold uppercase tracking-[.12em] text-olive-800/40 dark:text-white/30 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="techList" class="divide-y divide-olive-600/6 dark:divide-white/5">
-                <!-- skeleton rows -->
-                <tr class="animate-pulse">
-                  <td class="pl-6 py-5"><div class="skeleton w-4 h-4"></div></td>
-                  <td class="px-3 py-5">
-                    <div class="skeleton h-3.5 w-32 mb-2"></div>
-                    <div class="skeleton h-2.5 w-20"></div>
-                  </td>
-                  <td class="px-3 py-5"><div class="skeleton h-3 w-24"></div></td>
-                  <td class="px-3 py-5"><div class="skeleton h-3 w-20"></div></td>
-                  <td class="px-3 py-5 text-center"><div class="skeleton h-5 w-16 mx-auto rounded-full"></div></td>
-                  <td class="pr-6 py-5"><div class="skeleton h-7 w-24 ml-auto rounded-lg"></div></td>
-                </tr>
-                <tr class="animate-pulse">
-                  <td class="pl-6 py-5"><div class="skeleton w-4 h-4"></div></td>
-                  <td class="px-3 py-5"><div class="skeleton h-3.5 w-36 mb-2"></div><div class="skeleton h-2.5 w-24"></div></td>
-                  <td class="px-3 py-5"><div class="skeleton h-3 w-20"></div></td>
-                  <td class="px-3 py-5"><div class="skeleton h-3 w-24"></div></td>
-                  <td class="px-3 py-5 text-center"><div class="skeleton h-5 w-16 mx-auto rounded-full"></div></td>
-                  <td class="pr-6 py-5"><div class="skeleton h-7 w-24 ml-auto rounded-lg"></div></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Empty state -->
-          <div id="emptyState" class="hidden flex-col items-center justify-center py-20 px-6 text-center">
-            <div class="w-16 h-16 rounded-2xl bg-olive-100 dark:bg-white/5 flex items-center justify-center mb-4">
-              <i class="fa-solid fa-inbox text-[24px] text-olive-800/20 dark:text-white/15"></i>
-            </div>
-            <p class="text-[15px] font-extrabold text-olive-700 dark:text-white">No technicians found</p>
-            <p class="text-[12px] text-olive-800/50 dark:text-white/40 mt-1.5 max-w-xs">
-              Try adjusting your search or filter criteria to find what you're looking for.
-            </p>
-            <button id="clearFilters" class="mt-5 px-4 py-2.5 rounded-lg bg-olive-600 hover:bg-gold-500 text-white text-[11px] font-bold uppercase tracking-wider transition-colors">
-              Clear all filters
-            </button>
-          </div>
-
-          <!-- Pagination -->
-          <div class="px-5 sm:px-6 py-4 border-t border-olive-600/8 dark:border-white/5 flex flex-wrap items-center gap-3">
-            <p id="pageInfo" class="text-[11px] font-medium text-olive-800/50 dark:text-white/40">—</p>
-            <div class="ml-auto flex items-center gap-3">
-              <select id="perPage"
-                class="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-olive-100/70 dark:bg-white/5
-                       border border-transparent outline-none cursor-pointer
-                       text-olive-800/60 dark:text-white/60">
-                <option value="5">5 / page</option>
-                <option value="8" selected>8 / page</option>
-                <option value="15">15 / page</option>
-                <option value="25">25 / page</option>
-                <option value="50">50 / page</option>
-              </select>
-              <div class="flex items-center gap-1">
-                <button id="prevPage" class="page-nav" title="Previous">
-                  <i class="fa-solid fa-chevron-left text-[10px]"></i>
-                </button>
-                <div id="pageNumbers" class="flex items-center gap-1"></div>
-                <button id="nextPage" class="page-nav" title="Next">
-                  <i class="fa-solid fa-chevron-right text-[10px]"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <p class="text-center text-[10px] font-medium text-olive-800/30 dark:text-white/20 mt-8">
-          FixZen Admin Console ·
-          <span class="kbd">/</span> to search ·
-          <span class="kbd">Esc</span> to close · <span class="kbd">⌘K</span> palette
-        </p>
-      </div>
     </main>
-  </div>
-</div>
 
-<!-- ══════════════════════════════════════════
-     DETAIL DRAWER
-════════════════════════════════════════════ -->
-<div id="drawer" class="fixed inset-0 z-[100] hidden">
-  <div id="drawerScrim" class="absolute inset-0 bg-black/55 backdrop-blur-[2px] opacity-0"></div>
-  <aside id="drawerPanel"
-    class="absolute right-0 top-0 h-full w-full sm:w-[460px] bg-white dark:bg-ink-800
-           shadow-2xl translate-x-full transition-transform duration-300 ease-out flex flex-col">
+    <div class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-50">
+    <div class="bg-brand-olive/95 backdrop-blur-xl rounded-full p-2 flex justify-between items-center shadow-2xl border border-white/10">
+        <a href="admin.html" class="w-12 h-12 flex items-center justify-center text-white/50 hover:text-brand-gold transition-colors">
+            <i class="fa-solid fa-users-gear text-xl"></i>
+        </a>
+        
+        <a href="admin-jobs.html" class="bg-brand-gold text-white px-6 py-3 rounded-full flex items-center gap-2 transition-all shadow-lg">
+            <i class="fa-solid fa-calendar-check"></i>
+            <span class="text-xs font-bold">Manage Jobs</span>
+        </a>
 
-    <div class="h-[68px] shrink-0 flex items-center justify-between px-6 border-b border-olive-600/8 dark:border-white/5">
-      <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-lg bg-olive-600/10 dark:bg-gold-500/10 flex items-center justify-center">
-          <i class="fa-solid fa-user text-olive-600 dark:text-gold-400 text-[12px]"></i>
-        </div>
-        <h3 class="text-[14px] font-extrabold text-olive-700 dark:text-white">Technician Profile</h3>
-      </div>
-      <button id="drawerClose" class="w-8 h-8 rounded-lg flex items-center justify-center text-olive-800/50 dark:text-white/40 hover:bg-olive-100 dark:hover:bg-white/5 transition-colors">
-        <i class="fa-solid fa-xmark text-[14px]"></i>
-      </button>
+        <a href="index.html" class="w-12 h-12 flex items-center justify-center text-white/50 hover:text-brand-gold transition-colors">
+            <i class="fa-solid fa-eye text-xl"></i>
+        </a>
     </div>
-
-    <div id="drawerBody" class="flex-1 overflow-y-auto p-6 drawer-scroll"></div>
-
-    <div id="drawerFooter" class="shrink-0 p-4 border-t border-olive-600/8 dark:border-white/5 flex gap-2 bg-olive-50/50 dark:bg-white/[.02]"></div>
-  </aside>
 </div>
 
-<!-- ══════════════════════════════════════════
-     CONFIRM MODAL
-════════════════════════════════════════════ -->
-<div id="confirmModal" class="fixed inset-0 z-[110] hidden items-center justify-center p-4">
-  <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px] anim-fade"></div>
-  <div class="relative w-full max-w-sm bg-white dark:bg-ink-800 rounded-2xl shadow-2xl p-6 anim-pop">
-    <div id="confirmIconWrap" class="w-12 h-12 rounded-xl flex items-center justify-center mb-4">
-      <i id="confirmIcon" class="fa-solid fa-triangle-exclamation text-[18px]"></i>
+    <div x-show="sidebarOpen" class="fixed inset-0 z-[100]" style="display: none;">
+        <div class="absolute inset-0 bg-brand-olive/60 backdrop-blur-md" @click="sidebarOpen = false"></div>
+        <aside class="absolute left-0 top-0 h-full w-72 bg-white shadow-2xl p-8"
+               x-transition:enter="transition ease-out duration-300 transform"
+               x-transition:enter-start="-translate-x-full"
+               x-transition:enter-end="translate-x-0">
+            <h2 class="font-extrabold text-2xl text-brand-olive mb-10">ADMIN MENU</h2>
+            <nav class="space-y-6">
+                <a href="#" class="flex items-center gap-4 text-brand-olive font-bold hover:text-brand-gold">
+                    <i class="fa-solid fa-users-gear w-6"></i> Technician Approval
+                </a>
+                <a href="admin-jobs.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
+                    <i class="fa-solid fa-clipboard-list w-6"></i> Booking Logs
+                </a>
+                 <a href="admin-dashboard.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
+                    <i class="fa-solid fa-clipboard-list w-6"></i>Analytics Dashboard
+                </a>
+                 <a href="admin-analytics.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
+                    <i class="fa-solid fa-clipboard-list w-6"></i> Financial,job & platform efficiency
+                </a>
+                <a href="adminfeedback.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
+                    <i class="fa-solid fa-clipboard-list w-6"></i> Feedback & Reviews 
+                </a>
+                 <a href="admin-users.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
+                    <i class="fa-solid fa-clipboard-list w-6"></i> Customer Management Dashboard
+                </a>
+
+		 <a href="admin_banner.html" class="nav-link">
+        	<i class="fa-solid fa-tags w-5 text-center text-[14px]"></i>
+        	<span>Banner</span>
+      		</a>
+
+        	<a href="admin_ticker.html" class="nav-link">
+       		<i class="fa-solid fa-tags w-5 text-center text-[14px]"></i>
+        	<span>Ticker</span>
+      		</a>
+                 </a>
+                 <a href="fz-technician-admin.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
+                    <i class="fa-solid fa-clipboard-list w-6"></i> fz-technician-admin
+                </a>
+
+                <a href="admin-pricing.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
+                    <i class="fa-solid fa-clipboard-list w-6"></i> Service Price
+                </a>
+                 <a href="admin-payouts.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
+                    <i class="fa-solid fa-clipboard-list w-6"></i>  Partner Payouts
+                </a>
+                <a href="index.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
+                    <i class="fa-solid fa-house w-6"></i> Public Site
+                </a>
+                <div class="pt-10">
+                    <button class="w-full py-3 rounded-xl bg-red-50 text-red-600 font-bold text-xs uppercase tracking-widest border border-red-100">Logout</button>
+                </div>
+            </nav>
+        </aside>
     </div>
-    <h3 id="confirmTitle" class="text-[17px] font-extrabold text-olive-700 dark:text-white">Are you sure?</h3>
-    <p id="confirmMessage" class="text-[13px] text-olive-800/60 dark:text-white/45 mt-2 leading-relaxed"></p>
-    <div class="flex gap-2 mt-6">
-      <button id="confirmCancel" class="flex-1 py-2.5 rounded-lg bg-olive-100 dark:bg-white/5 text-olive-800/70 dark:text-white/60 text-[11px] font-bold uppercase tracking-wider hover:bg-olive-200/70 dark:hover:bg-white/10 transition-colors">
-        Cancel
-      </button>
-      <button id="confirmOk" class="flex-1 py-2.5 rounded-lg bg-olive-600 hover:bg-gold-500 text-white text-[11px] font-bold uppercase tracking-wider transition-colors">
-        Confirm
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════
-     TOASTS
-════════════════════════════════════════════ -->
-<div id="toasts" class="fixed top-[80px] right-4 z-[120] flex flex-col gap-2 w-[calc(100vw-2rem)] max-w-[380px] pointer-events-none"></div>
-
-<!-- ══════════════════════════════════════════
-     FLOATING DOCK
-════════════════════════════════════════════ -->
-<div class="fixed bottom-5 left-1/2 -translate-x-1/2 w-[92%] max-w-md z-[60]">
-  <div class="bg-olive-700/95 dark:bg-ink-700/95 backdrop-blur-xl rounded-full p-1.5 flex justify-between items-center shadow-2xl border border-white/10">
-    <a href="#" class="w-11 h-11 flex items-center justify-center text-white/60 hover:text-gold-400 transition-colors" title="Technicians">
-      <i class="fa-solid fa-user-check text-[14px]"></i>
-    </a>
-    <a href="admin-jobs.html" class="bg-gold-500 hover:bg-gold-400 text-white px-5 py-2.5 rounded-full flex items-center gap-2 shadow-lg transition-all">
-      <i class="fa-solid fa-calendar-check text-[12px]"></i>
-      <span class="text-[12px] font-bold">Manage Jobs</span>
-    </a>
-    <a href="index.html" class="w-11 h-11 flex items-center justify-center text-white/60 hover:text-gold-400 transition-colors" title="Public site">
-      <i class="fa-solid fa-arrow-up-right-from-square text-[14px]"></i>
-    </a>
-  </div>
-</div>
-
-
-<!-- ═══════════════════════════════════════════════════════════
-     ALL LOGIC — INLINE FOR RELIABILITY
-═══════════════════════════════════════════════════════════ -->
-<script>
-(function () {
-  'use strict';
-
-  /* ─────────────────────────  SUPABASE  ───────────────────────── */
-  const SUPABASE_URL  = 'https://kzxdxnxgouthsywbsnvl.supabase.co';
-  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6eGR4bnhnb3V0aHN5d2JzbnZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMTczMzIsImV4cCI6MjA4MTg5MzMzMn0.nqzn89vmTFKVNuZPHfGRxdTg6UHT6GMud238rr49qag';
-
-  let sb;
-  try {
-    sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-  } catch (e) {
-    console.error('Supabase init failed', e);
-  }
-
-  /* ─────────────────────────  STATE  ───────────────────────── */
-  const state = {
-    all: [],           // all technicians
-    filtered: [],      // after filters/search/sort
-    selected: new Set(),
-    page: 1,
-    perPage: 8,
-    status: 'all',
-    category: 'all',
-    search: '',
-    sortKey: 'created_at',
-    sortDir: 'desc',
-    range: 14,          // trend days
-  };
-
-  /* ─────────────────────────  DOM HELPERS  ───────────────────────── */
-  const $  = (sel, root = document) => root.querySelector(sel);
-  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-  }[c]));
-
-  /* ─────────────────────────  TOAST  ───────────────────────── */
-  function toast(message, type = 'success', duration = 3500) {
-    const tones = {
-      success: { bg: 'bg-white dark:bg-ink-700', border: 'border-green-500/30', icon: 'fa-circle-check text-green-500', bar: 'bg-green-500' },
-      error:   { bg: 'bg-white dark:bg-ink-700', border: 'border-red-500/30',   icon: 'fa-circle-exclamation text-red-500', bar: 'bg-red-500' },
-      info:    { bg: 'bg-white dark:bg-ink-700', border: 'border-gold-500/30',  icon: 'fa-circle-info text-gold-500',  bar: 'bg-gold-500' },
-      warn:    { bg: 'bg-white dark:bg-ink-700', border: 'border-yellow-500/30',icon: 'fa-triangle-exclamation text-yellow-500', bar: 'bg-yellow-500' },
-    };
-    const t = tones[type] || tones.info;
-    const wrap = document.getElementById('toasts');
-    const el = document.createElement('div');
-    el.className = `${t.bg} ${t.border} border rounded-xl shadow-xl p-3.5 flex items-start gap-3 anim-slide-in pointer-events-auto overflow-hidden relative`;
-    el.innerHTML = `
-      <i class="fa-solid ${t.icon} mt-0.5 text-[14px]"></i>
-      <p class="flex-1 text-[12.5px] font-semibold text-olive-700 dark:text-white/90 leading-snug">${esc(message)}</p>
-      <button class="w-5 h-5 rounded flex items-center justify-center text-olive-800/40 dark:text-white/30 hover:bg-olive-100 dark:hover:bg-white/10 transition-colors shrink-0">
-        <i class="fa-solid fa-xmark text-[11px]"></i>
-      </button>
-      <div class="absolute bottom-0 left-0 h-0.5 ${t.bar}" style="width:100%; animation: shrinkBar ${duration}ms linear forwards;"></div>
-    `;
-    const dismiss = () => {
-      el.classList.remove('anim-slide-in');
-      el.classList.add('anim-slide-out');
-      setTimeout(() => el.remove(), 280);
-    };
-    el.querySelector('button').onclick = dismiss;
-    wrap.appendChild(el);
-    setTimeout(dismiss, duration);
-  }
-
-  // Inject keyframe for toast progress bar
-  const styleEl = document.createElement('style');
-  styleEl.textContent = '@keyframes shrinkBar { from { width: 100%; } to { width: 0%; } }';
-  document.head.appendChild(styleEl);
-
-  /* ─────────────────────────  CONFIRM MODAL  ───────────────────────── */
-  let confirmResolver = null;
-  function confirmDialog({ title, message, confirmText = 'Confirm', tone = 'warning' }) {
-    return new Promise(resolve => {
-      const tones = {
-        warning: { bg: 'bg-yellow-500/12 dark:bg-yellow-500/15', text: 'text-yellow-600 dark:text-yellow-400', icon: 'fa-triangle-exclamation' },
-        danger:  { bg: 'bg-red-500/12 dark:bg-red-500/15',       text: 'text-red-500 dark:text-red-400',       icon: 'fa-trash' },
-        success: { bg: 'bg-green-500/12 dark:bg-green-500/15',   text: 'text-green-600 dark:text-green-400',   icon: 'fa-circle-check' },
-      };
-      const t = tones[tone] || tones.warning;
-      const modal = document.getElementById('confirmModal');
-      const wrap = document.getElementById('confirmIconWrap');
-      const icon = document.getElementById('confirmIcon');
-      wrap.className = `w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${t.bg}`;
-      icon.className = `fa-solid ${t.icon} text-[18px] ${t.text}`;
-      document.getElementById('confirmTitle').textContent = title;
-      document.getElementById('confirmMessage').textContent = message;
-      document.getElementById('confirmOk').textContent = confirmText;
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-      confirmResolver = resolve;
-    });
-  }
-  function closeConfirm(result) {
-    const modal = document.getElementById('confirmModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    if (confirmResolver) { confirmResolver(result); confirmResolver = null; }
-  }
-  document.getElementById('confirmCancel').onclick = () => closeConfirm(false);
-  document.getElementById('confirmOk').onclick     = () => closeConfirm(true);
-  document.getElementById('confirmModal').addEventListener('click', e => {
-    if (e.target.id === 'confirmModal' || e.target.classList.contains('bg-black/55')) closeConfirm(false);
-  });
-
-  /* ─────────────────────────  THEME  ───────────────────────── */
-  function applyTheme(dark) {
-    document.documentElement.classList.toggle('dark', dark);
-    const icon = document.getElementById('themeIcon');
-    if (icon) icon.className = dark ? 'fa-solid fa-sun text-[13px]' : 'fa-solid fa-moon text-[13px]';
-    try { localStorage.setItem('fz-theme', dark ? 'dark' : 'light'); } catch(e) {}
-  }
-  let savedTheme = 'light';
-  try { savedTheme = localStorage.getItem('fz-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch(e) {}
-  applyTheme(savedTheme === 'dark');
-  document.getElementById('themeToggle').onclick = () => applyTheme(!document.documentElement.classList.contains('dark'));
-
-  /* ─────────────────────────  SIDEBAR  ───────────────────────── */
-  const sidebar = document.getElementById('sidebar');
-  const scrim = document.getElementById('mobileScrim');
-  function openSidebar()  { sidebar.classList.remove('-translate-x-full'); scrim.classList.remove('hidden'); requestAnimationFrame(()=> scrim.classList.add('opacity-100')); }
-  function closeSidebar() { sidebar.classList.add('-translate-x-full'); scrim.classList.remove('opacity-100'); setTimeout(()=> scrim.classList.add('hidden'), 250); }
-  document.getElementById('menuBtn').onclick      = openSidebar;
-  document.getElementById('closeSidebar').onclick = closeSidebar;
-  scrim.onclick = closeSidebar;
-
-  /* ─────────────────────────  DATE UTILS  ───────────────────────── */
-  function parseDate(v) {
-    if (!v) return null;
-    const d = new Date(v);
-    return isNaN(d) ? null : d;
-  }
-  function timeAgo(date) {
-    if (!date) return '—';
-    const secs = Math.floor((Date.now() - date.getTime()) / 1000);
-    if (secs < 60) return 'just now';
-    const mins = Math.floor(secs / 60);
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    const days = Math.floor(hrs / 24);
-    if (days < 30) return `${days}d ago`;
-    const months = Math.floor(days / 30);
-    if (months < 12) return `${months}mo ago`;
-    return `${Math.floor(months / 12)}y ago`;
-  }
-  function fmtDate(v) {
-    const d = parseDate(v);
-    if (!d) return '—';
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  }
-
-  /* ─────────────────────────  STATUS BADGE  ───────────────────────── */
-  function statusBadge(status) {
-    const s = (status || 'pending').toLowerCase();
-    const map = {
-      pending:  { bg: 'bg-yellow-500/12 dark:bg-yellow-500/15', text: 'text-yellow-700 dark:text-yellow-400', dot: 'bg-yellow-500', label: 'Pending' },
-      approved: { bg: 'bg-green-500/12 dark:bg-green-500/15',   text: 'text-green-700 dark:text-green-400',   dot: 'bg-green-500',  label: 'Approved' },
-      rejected: { bg: 'bg-red-500/12 dark:bg-red-500/15',       text: 'text-red-600 dark:text-red-400',       dot: 'bg-red-500',    label: 'Rejected' },
-    };
-    const m = map[s] || { bg:'bg-olive-100 dark:bg-white/5', text:'text-olive-800/60 dark:text-white/50', dot:'bg-olive-800/40', label: s };
-    return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${m.bg} ${m.text}">
-      <span class="w-1.5 h-1.5 rounded-full ${m.dot}"></span>${m.label}</span>`;
-  }
-
-  function avatar(name) {
-    const n = (name || '?').trim().charAt(0).toUpperCase();
-    const colors = ['#5D5646','#A07D54','#8a7458','#c49a63','#4a4438'];
-    const color = colors[(name||'').length % colors.length];
-    return `<div class="w-9 h-9 rounded-lg flex items-center justify-center text-white text-[12px] font-extrabold shrink-0"
-      style="background:${color}">${esc(n)}</div>`;
-  }
-
-  /* ─────────────────────────  DATA LOADING  ───────────────────────── */
-  async function loadData({ silent = false } = {}) {
-    if (!sb) { toast('Supabase not initialized', 'error'); return; }
-    if (!silent) setRefreshing(true);
-
-    try {
-      const { data, error } = await sb
-        .from('technicians')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      state.all = Array.isArray(data) ? data : [];
-      state.selected.clear();
-
-      buildCategoryFilter();
-      applyFilters();
-      renderStats();
-      renderCharts();
-      updateNavBadge();
-
-      const now = new Date();
-      document.getElementById('lastSync').textContent =
-        now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-      if (!silent && state.all.length) {
-        // silent success — no toast on first load
-      }
-    } catch (err) {
-      console.error('[FixZen] load error:', err);
-      toast('Failed to load technicians: ' + (err.message || 'unknown error'), 'error', 5000);
-      state.all = [];
-      applyFilters();
-      renderStats();
-      renderCharts();
-    } finally {
-      setRefreshing(false);
-    }
-  }
-
-  function setRefreshing(on) {
-    const icon = document.getElementById('refreshIcon');
-    if (!icon) return;
-    if (on) icon.classList.add('spin');
-    else    icon.classList.remove('spin');
-  }
-
-  /* ─────────────────────────  FILTER / SORT / SEARCH  ───────────────────────── */
-  function applyFilters() {
-    const q = state.search.trim().toLowerCase();
-
-    let list = state.all.filter(t => {
-      if (state.status !== 'all' && (t.status || 'pending').toLowerCase() !== state.status) return false;
-      if (state.category !== 'all' && t.category !== state.category) return false;
-      if (q) {
-        const hay = [t.name, t.phone, t.category, t.email, t.city].filter(Boolean).join(' ').toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
-
-    // sort
-    const k = state.sortKey, dir = state.sortDir;
-    list.sort((a, b) => {
-      let av = a[k], bv = b[k];
-      if (k === 'created_at') {
-        av = parseDate(av)?.getTime() || 0;
-        bv = parseDate(bv)?.getTime() || 0;
-      } else {
-        av = String(av ?? '').toLowerCase();
-        bv = String(bv ?? '').toLowerCase();
-      }
-      if (av < bv) return dir === 'asc' ? -1 : 1;
-      if (av > bv) return dir === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    state.filtered = list;
-    state.page = 1;
-    renderTable();
-  }
-
-  function buildCategoryFilter() {
-    const select = document.getElementById('categoryFilter');
-    const cats = Array.from(new Set(state.all.map(t => t.category).filter(Boolean))).sort();
-    select.innerHTML = '<option value="all">All Categories</option>' +
-      cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
-    if (state.category !== 'all' && !cats.includes(state.category)) {
-      state.category = 'all';
-      select.value = 'all';
-    }
-  }
-
-  /* ─────────────────────────  RENDER: STATS  ───────────────────────── */
-  function renderStats() {
-    const total    = state.all.length;
-    const pending  = state.all.filter(t => (t.status||'pending') === 'pending').length;
-    const approved = state.all.filter(t => t.status === 'approved').length;
-    const rejected = state.all.filter(t => t.status === 'rejected').length;
-
-    document.getElementById('totalCount').textContent    = total;
-    document.getElementById('pendingCount').textContent  = pending;
-    document.getElementById('approvedCount').textContent = approved;
-    document.getElementById('rejectedCount').textContent = rejected;
-    document.getElementById('tableCount').textContent    = total;
-    document.getElementById('donutTotal').textContent    = total;
-
-    // animate sparklines (real 7-day mini trend per status)
-    renderSpark('totalSpark', state.all.map(t => parseDate(t.created_at)));
-  }
-
-  function renderSpark(containerId, dates) {
-    const el = document.getElementById(containerId);
-    if (!el) return;
-    const now = Date.now();
-    const day = 86400000;
-    const buckets = new Array(7).fill(0);
-    dates.forEach(d => {
-      if (!d) return;
-      const diff = Math.floor((now - d.getTime()) / day);
-      if (diff >= 0 && diff < 7) buckets[6 - diff]++;
-    });
-    const max = Math.max(1, ...buckets);
-    el.innerHTML = `<div class="flex items-end justify-end gap-[3px] h-full">
-      ${buckets.map(v => {
-        const h = v === 0 ? 8 : Math.max(20, Math.round(v / max * 100));
-        const op = v === 0 ? 0.18 : 0.35 + (v / max) * 0.65;
-        return `<div style="height:${h}%;background:rgba(93,86,70,${op})" class="w-[6px] rounded-sm transition-all duration-500"></div>`;
-      }).join('')}
-    </div>`;
-  }
-
-  /* ─────────────────────────  RENDER: CHARTS  ───────────────────────── */
-  function renderCharts() {
-    renderTrend();
-    renderDonut();
-  }
-
-  function renderTrend() {
-    const el = document.getElementById('trendChart');
-    const days = state.range;
-    const now = new Date();
-    now.setHours(23,59,59,999);
-
-    const buckets = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(now.getTime() - i * 86400000);
-      const start = new Date(d); start.setHours(0,0,0,0);
-      const end   = new Date(d); end.setHours(23,59,59,999);
-      const count = state.all.filter(t => {
-        const cd = parseDate(t.created_at);
-        return cd && cd >= start && cd <= end;
-      }).length;
-      buckets.push({ date: d, count });
-    }
-
-    const max = Math.max(1, ...buckets.map(b => b.count));
-    const total = buckets.reduce((s, b) => s + b.count, 0);
-
-    // Build SVG line chart
-    const W = 800, H = 200, padX = 8, padY = 20;
-    const innerW = W - padX * 2;
-    const innerH = H - padY * 2;
-
-    const points = buckets.map((b, i) => {
-      const x = padX + (i / Math.max(1, buckets.length - 1)) * innerW;
-      const y = padY + innerH - (b.count / max) * innerH;
-      return { x, y, ...b };
-    });
-
-    const linePath = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
-    const areaPath = `${linePath} L ${points[points.length-1].x} ${padY + innerH} L ${points[0].x} ${padY + innerH} Z`;
-
-    el.innerHTML = `
-      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="w-full h-full">
-        <defs>
-          <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#A07D54" stop-opacity="0.28"/>
-            <stop offset="100%" stop-color="#A07D54" stop-opacity="0"/>
-          </linearGradient>
-          <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stop-color="#8a7458"/>
-            <stop offset="100%" stop-color="#A07D54"/>
-          </linearGradient>
-        </defs>
-        ${[0.25, 0.5, 0.75].map(f => `
-          <line x1="${padX}" y1="${padY + innerH * f}" x2="${W - padX}" y2="${padY + innerH * f}"
-            stroke="currentColor" stroke-width="1" class="text-olive-600/8 dark:text-white/5" stroke-dasharray="3 5"/>
-        `).join('')}
-        <path d="${areaPath}" fill="url(#areaGrad)"/>
-        <path d="${linePath}" fill="none" stroke="url(#lineGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
-          style="stroke-dasharray: 2000; stroke-dashoffset: 2000; animation: drawLine 1.2s cubic-bezier(.2,.9,.3,1) forwards;"/>
-        ${points.map(p => `
-          <circle cx="${p.x}" cy="${p.y}" r="3.5" fill="#A07D54" stroke="white" stroke-width="2"
-            class="opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
-            style="animation: fadeIn .4s ease ${points.indexOf(p)*0.05 + 0.9}s forwards;">
-            <title>${p.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}: ${p.count} signups</title>
-          </circle>
-        `).join('')}
-      </svg>
-    `;
-
-    // Inject drawLine keyframe once
-    if (!document.getElementById('drawLineKeyframe')) {
-      const s = document.createElement('style');
-      s.id = 'drawLineKeyframe';
-      s.textContent = '@keyframes drawLine { to { stroke-dashoffset: 0; } }';
-      document.head.appendChild(s);
-    }
-
-    // Update trend total badge
-    const badge = document.getElementById('trendTotal');
-    if (badge) badge.textContent = `${total} in ${days}d`;
-  }
-
-  function renderDonut() {
-    const svg = document.getElementById('donutChart');
-    if (!svg) return;
-    const total    = state.all.length;
-    const pending  = state.all.filter(t => (t.status||'pending') === 'pending').length;
-    const approved = state.all.filter(t => t.status === 'approved').length;
-    const rejected = state.all.filter(t => t.status === 'rejected').length;
-
-    const segments = [
-      { key: 'approved', value: approved, color: '#22c55e' },
-      { key: 'pending',  value: pending,  color: '#eab308' },
-      { key: 'rejected', value: rejected, color: '#ef4444' },
-    ].filter(s => s.value > 0);
-
-    const r = 15.9155;
-    const circ = 2 * Math.PI * r;
-
-    if (total === 0) {
-      svg.innerHTML = `<circle cx="21" cy="21" r="${r}" fill="none" stroke="currentColor" stroke-width="3.5" class="text-olive-600/10 dark:text-white/8"/>`;
-    } else {
-      let offset = 0;
-      svg.innerHTML = segments.map(s => {
-        const dash = (s.value / total) * circ;
-        const el = `<circle cx="21" cy="21" r="${r}" fill="none"
-          stroke="${s.color}" stroke-width="3.5" stroke-linecap="round"
-          stroke-dasharray="${dash} ${circ}"
-          stroke-dashoffset="${-offset}"
-          style="transition: stroke-dasharray .8s cubic-bezier(.2,.9,.3,1), stroke-dashoffset .8s cubic-bezier(.2,.9,.3,1);"/>`;
-        offset += dash;
-        return el;
-      }).join('');
-    }
-
-    const legend = document.getElementById('donutLegend');
-    legend.innerHTML = [
-      { label: 'Approved', value: approved, color: 'bg-green-500' },
-      { label: 'Pending',  value: pending,  color: 'bg-yellow-500' },
-      { label: 'Rejected', value: rejected, color: 'bg-red-500' },
-    ].map(s => {
-      const pct = total ? Math.round((s.value / total) * 100) : 0;
-      return `<div class="flex items-center gap-2.5">
-        <span class="w-2 h-2 rounded-full ${s.color} shrink-0"></span>
-        <span class="text-[12px] font-semibold text-olive-800/70 dark:text-white/60 flex-1">${s.label}</span>
-        <span class="text-[12px] font-extrabold text-olive-700 dark:text-white tabular-nums">${s.value}</span>
-        <span class="text-[10px] font-semibold text-olive-800/40 dark:text-white/35 tabular-nums w-9 text-right">${pct}%</span>
-      </div>`;
-    }).join('');
-  }
-
-  /* ─────────────────────────  RENDER: TABLE  ───────────────────────── */
-  function renderTable() {
-    const tbody = document.getElementById('techList');
-    const empty = document.getElementById('emptyState');
-    const list = state.filtered;
-    const total = list.length;
-
-    document.getElementById('filteredCount').textContent = total;
-
-    // pagination
-    const totalPages = Math.max(1, Math.ceil(total / state.perPage));
-    if (state.page > totalPages) state.page = totalPages;
-    const start = (state.page - 1) * state.perPage;
-    const end = start + state.perPage;
-    const pageItems = list.slice(start, end);
-
-    if (total === 0) {
-      tbody.innerHTML = '';
-      tbody.parentElement.parentElement.style.display = 'none';
-      empty.classList.remove('hidden');
-      empty.classList.add('flex');
-      updatePagination(0, 0, 0);
-      updateSelectAllState();
-      return;
-    }
-    tbody.parentElement.parentElement.style.display = '';
-    empty.classList.add('hidden');
-    empty.classList.remove('flex');
-
-    tbody.innerHTML = pageItems.map(t => {
-      const id = esc(t.id);
-      const selected = state.selected.has(t.id);
-      const date = parseDate(t.created_at);
-      return `
-        <tr class="tech-row ${selected ? 'row-selected' : ''}" data-id="${id}">
-          <td class="pl-5 sm:pl-6 pr-2 py-4">
-            <input type="checkbox" class="fz row-check" data-id="${id}" ${selected ? 'checked' : ''}>
-          </td>
-          <td class="px-3 py-4">
-            <div class="flex items-center gap-3">
-              ${avatar(t.name)}
-              <div class="min-w-0">
-                <p class="text-[13px] font-extrabold text-olive-700 dark:text-white truncate leading-tight">${esc(t.name || 'Unnamed')}</p>
-                <p class="text-[11px] font-mono text-olive-800/45 dark:text-white/35 truncate leading-tight mt-0.5">${esc(t.phone || '—')}</p>
-              </div>
-            </div>
-          </td>
-          <td class="px-3 py-4">
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-olive-100 dark:bg-white/5 text-[11px] font-semibold text-olive-800/70 dark:text-white/60">
-              <i class="fa-solid fa-tag text-[9px] opacity-50"></i>
-              ${esc(t.category || '—')}
-            </span>
-          </td>
-          <td class="px-3 py-4">
-            <p class="text-[12px] font-semibold text-olive-800/70 dark:text-white/60">${timeAgo(date)}</p>
-            <p class="text-[10px] font-medium text-olive-800/40 dark:text-white/30 mt-0.5">${fmtDate(t.created_at)}</p>
-          </td>
-          <td class="px-3 py-4 text-center">${statusBadge(t.status)}</td>
-          <td class="pr-5 sm:pr-6 pl-3 py-4">
-            <div class="flex items-center justify-end gap-1">
-              ${(t.status === 'pending' || !t.status) ? `
-                <button class="row-action approve" data-id="${id}" title="Approve">
-                  <i class="fa-solid fa-check text-[11px]"></i>
-                </button>
-                <button class="row-action reject" data-id="${id}" title="Reject">
-                  <i class="fa-solid fa-xmark text-[11px]"></i>
-                </button>
-              ` : `
-                <button class="row-action reset" data-id="${id}" title="Reset to pending">
-                  <i class="fa-solid fa-rotate-left text-[11px]"></i>
-                </button>
-              `}
-              <button class="row-action view" data-id="${id}" title="View details">
-                <i class="fa-solid fa-arrow-right text-[11px]"></i>
-              </button>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join('');
-
-    updatePagination(start + 1, Math.min(end, total), total);
-    updateSelectAllState();
-  }
-
-  function updatePagination(from, to, total) {
-    const info = document.getElementById('pageInfo');
-    if (!info) return;
-    info.textContent = total === 0 ? 'No results' : `Showing ${from}–${to} of ${total}`;
-
-    const totalPages = Math.max(1, Math.ceil(total / state.perPage));
-    const nums = document.getElementById('pageNumbers');
-    const pages = [];
-    const cur = state.page;
-    const maxShow = 5;
-
-    let start = Math.max(1, cur - 2);
-    let end = Math.min(totalPages, start + maxShow - 1);
-    if (end - start < maxShow - 1) start = Math.max(1, end - maxShow + 1);
-
-    for (let i = start; i <= end; i++) pages.push(i);
-
-    nums.innerHTML = pages.map(p => `
-      <button data-page="${p}" class="page-num ${p === cur ? 'page-num-active' : ''}">${p}</button>
-    `).join('');
-
-    document.getElementById('prevPage').disabled = cur === 1;
-    document.getElementById('nextPage').disabled = cur === totalPages;
-
-    nums.querySelectorAll('.page-num').forEach(btn => {
-      btn.onclick = () => { state.page = +btn.dataset.page; renderTable(); };
-    });
-  }
-
-  function updateSelectAllState() {
-    const box = document.getElementById('selectAll');
-    if (!box) return;
-    const pageIds = state.filtered
-      .slice((state.page - 1) * state.perPage, state.page * state.perPage)
-      .map(t => t.id);
-    const selectedOnPage = pageIds.filter(id => state.selected.has(id)).length;
-
-    box.checked = pageIds.length > 0 && selectedOnPage === pageIds.length;
-    box.indeterminate = selectedOnPage > 0 && selectedOnPage < pageIds.length;
-
-    const bulk = document.getElementById('bulkBar');
-    const count = state.selected.size;
-    document.getElementById('bulkCount').textContent = count;
-    if (count > 0) bulk.classList.remove('hidden');
-    else bulk.classList.add('hidden');
-  }
-
-  /* ─────────────────────────  ROW ACTIONS (delegated)  ───────────────────────── */
-  document.getElementById('techList').addEventListener('click', async e => {
-    const check = e.target.closest('.row-check');
-    if (check) {
-      const id = check.dataset.id;
-      if (check.checked) state.selected.add(id); else state.selected.delete(id);
-      check.closest('tr').classList.toggle('row-selected', check.checked);
-      updateSelectAllState();
-      return;
-    }
-
-    const btn = e.target.closest('.row-action');
-    if (!btn) {
-      // row click → open drawer
-      const row = e.target.closest('tr.tech-row');
-      if (row) openDrawer(row.dataset.id);
-      return;
-    }
-
-    const id = btn.dataset.id;
-    const tech = state.all.find(t => String(t.id) === String(id));
-    if (!tech) return;
-
-    if (btn.classList.contains('approve')) {
-      await setStatus(id, 'approved', tech.name);
-    } else if (btn.classList.contains('reject')) {
-      const ok = await confirmDialog({
-        title: 'Reject application?',
-        message: `${tech.name || 'This technician'} will be moved to rejected. You can reset them later.`,
-        confirmText: 'Reject',
-        tone: 'danger'
-      });
-      if (ok) await setStatus(id, 'rejected', tech.name);
-    } else if (btn.classList.contains('reset')) {
-      await setStatus(id, 'pending', tech.name);
-    } else if (btn.classList.contains('view')) {
-      openDrawer(id);
-    }
-  });
-
-  /* ─────────────────────────  STATUS UPDATE  ───────────────────────── */
-  async function setStatus(id, status, name = '') {
-    const tech = state.all.find(t => String(t.id) === String(id));
-    const prev = tech?.status;
-    if (tech) tech.status = status; // optimistic
-    renderStats(); renderCharts(); renderTable();
-
-    try {
-      const { error } = await sb.from('technicians').update({ status }).eq('id', id);
-      if (error) throw error;
-      const labels = { approved: 'Approved', rejected: 'Rejected', pending: 'Reset to pending' };
-      toast(`${labels[status] || 'Updated'}: ${name || 'technician'}`, status === 'rejected' ? 'warn' : 'success');
-    } catch (err) {
-      console.error(err);
-      if (tech) tech.status = prev; // rollback
-      renderStats(); renderCharts(); renderTable();
-      toast('Update failed: ' + (err.message || 'unknown error'), 'error');
-    }
-  }
-
-  /* ─────────────────────────  BULK ACTIONS  ───────────────────────── */
-  document.getElementById('bulkApprove').onclick = async () => {
-    const ids = Array.from(state.selected);
-    if (!ids.length) return;
-    const ok = await confirmDialog({
-      title: `Approve ${ids.length} technician${ids.length>1?'s':''}?`,
-      message: 'They will immediately gain access as approved partners.',
-      confirmText: `Approve ${ids.length}`,
-      tone: 'success'
-    });
-    if (!ok) return;
-    await bulkSetStatus(ids, 'approved');
-  };
-
-  document.getElementById('bulkReject').onclick = async () => {
-    const ids = Array.from(state.selected);
-    if (!ids.length) return;
-    const ok = await confirmDialog({
-      title: `Reject ${ids.length} technician${ids.length>1?'s':''}?`,
-      message: 'You can reset them individually later if needed.',
-      confirmText: `Reject ${ids.length}`,
-      tone: 'danger'
-    });
-    if (!ok) return;
-    await bulkSetStatus(ids, 'rejected');
-  };
-
-  document.getElementById('bulkExport').onclick = () => {
-    const ids = Array.from(state.selected);
-    const rows = state.all.filter(t => ids.includes(t.id));
-    exportCSV(rows, 'selected-technicians.csv');
-  };
-
-  document.getElementById('bulkClear').onclick = () => {
-    state.selected.clear();
-    renderTable();
-  };
-
-  async function bulkSetStatus(ids, status) {
-    // optimistic
-    ids.forEach(id => {
-      const t = state.all.find(x => String(x.id) === String(id));
-      if (t) t.status = status;
-    });
-    renderStats(); renderCharts(); renderTable();
-
-    try {
-      const { error } = await sb.from('technicians').update({ status }).in('id', ids);
-      if (error) throw error;
-      toast(`${ids.length} technician${ids.length>1?'s':''} updated`, status === 'rejected' ? 'warn' : 'success');
-      state.selected.clear();
-      renderTable();
-    } catch (err) {
-      console.error(err);
-      toast('Bulk update failed: ' + (err.message || 'unknown'), 'error');
-      await loadData({ silent: true });
-    }
-  }
-
-  /* ─────────────────────────  DRAWER  ───────────────────────── */
-  const drawer = document.getElementById('drawer');
-  const drawerScrim = document.getElementById('drawerScrim');
-  const drawerPanel = document.getElementById('drawerPanel');
-
-  function openDrawer(id) {
-    const t = state.all.find(x => String(x.id) === String(id));
-    if (!t) return;
-
-    const body = document.getElementById('drawerBody');
-    const date = parseDate(t.created_at);
-
-    const rows = [
-      { label: 'Full name', value: t.name || '—', icon: 'fa-user' },
-      { label: 'Phone', value: t.phone || '—', icon: 'fa-phone', mono: true },
-      { label: 'Email', value: t.email || '—', icon: 'fa-envelope' },
-      { label: 'Category', value: t.category || '—', icon: 'fa-tag' },
-      { label: 'City', value: t.city || '—', icon: 'fa-location-dot' },
-      { label: 'Experience', value: t.experience ? `${t.experience} years` : '—', icon: 'fa-briefcase' },
-      { label: 'Applied', value: `${fmtDate(t.created_at)} (${timeAgo(date)})`, icon: 'fa-calendar' },
-      { label: 'ID', value: String(t.id).slice(0, 12), icon: 'fa-fingerprint', mono: true },
-    ];
-
-    body.innerHTML = `
-      <div class="flex flex-col items-center text-center mb-6">
-        ${avatar(t.name).replace('w-9 h-9 rounded-lg', 'w-20 h-20 rounded-2xl text-[28px]')}
-        <h2 class="text-[20px] font-extrabold text-olive-700 dark:text-white mt-4 leading-tight">${esc(t.name || 'Unnamed')}</h2>
-        <p class="text-[12px] font-mono text-olive-800/50 dark:text-white/40 mt-1">${esc(t.phone || '')}</p>
-        <div class="mt-3">${statusBadge(t.status)}</div>
-      </div>
-
-      <div class="rounded-xl bg-olive-50 dark:bg-white/[.03] border border-olive-600/8 dark:border-white/5 divide-y divide-olive-600/6 dark:divide-white/5">
-        ${rows.map(r => `
-          <div class="flex items-center gap-3 px-4 py-3">
-            <i class="fa-solid ${r.icon} text-[11px] text-olive-800/35 dark:text-white/30 w-4 text-center"></i>
-            <span class="text-[11px] font-bold uppercase tracking-wider text-olive-800/45 dark:text-white/35 w-24 shrink-0">${r.label}</span>
-            <span class="text-[13px] font-semibold text-olive-700 dark:text-white/85 flex-1 ${r.mono ? 'font-mono text-[12px]' : ''}">${esc(r.value)}</span>
-          </div>
-        `).join('')}
-      </div>
-    `;
-
-    const footer = document.getElementById('drawerFooter');
-    const isPending = !t.status || t.status === 'pending';
-    footer.innerHTML = `
-      ${isPending ? `
-        <button id="drawerReject" class="flex-1 py-3 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white text-[11px] font-bold uppercase tracking-wider transition-colors">
-          <i class="fa-solid fa-xmark mr-1.5"></i> Reject
-        </button>
-        <button id="drawerApprove" class="flex-1 py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white text-[11px] font-bold uppercase tracking-wider transition-colors">
-          <i class="fa-solid fa-check mr-1.5"></i> Approve
-        </button>
-      ` : `
-        <button id="drawerReset" class="flex-1 py-3 rounded-xl bg-olive-100 dark:bg-white/5 hover:bg-olive-200 dark:hover:bg-white/10 text-olive-800/70 dark:text-white/60 text-[11px] font-bold uppercase tracking-wider transition-colors">
-          <i class="fa-solid fa-rotate-left mr-1.5"></i> Reset to pending
-        </button>
-      `}
-    `;
-
-    const approveBtn = document.getElementById('drawerApprove');
-    const rejectBtn  = document.getElementById('drawerReject');
-    const resetBtn   = document.getElementById('drawerReset');
-
-    if (approveBtn) approveBtn.onclick = async () => { closeDrawer(); await setStatus(t.id, 'approved', t.name); };
-    if (rejectBtn)  rejectBtn.onclick  = async () => {
-      const ok = await confirmDialog({ title:'Reject application?', message:`${t.name} will be moved to rejected.`, confirmText:'Reject', tone:'danger' });
-      if (ok) { closeDrawer(); await setStatus(t.id, 'rejected', t.name); }
-    };
-    if (resetBtn)   resetBtn.onclick   = async () => { closeDrawer(); await setStatus(t.id, 'pending', t.name); };
-
-    drawer.classList.remove('hidden');
-    requestAnimationFrame(() => {
-      drawerScrim.classList.add('opacity-100');
-      drawerPanel.classList.remove('translate-x-full');
-    });
-  }
-
-  function closeDrawer() {
-    drawerScrim.classList.remove('opacity-100');
-    drawerPanel.classList.add('translate-x-full');
-    setTimeout(() => drawer.classList.add('hidden'), 320);
-  }
-  document.getElementById('drawerClose').onclick = closeDrawer;
-  drawerScrim.onclick = closeDrawer;
-
-  /* ─────────────────────────  SEARCH / FILTERS / SORT  ───────────────────────── */
-  let searchTimer;
-  document.getElementById('searchInput').addEventListener('input', (e) => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
-      state.search = e.target.value;
-      applyFilters();
-    }, 180);
-  });
-
-  document.getElementById('statusFilter').addEventListener('click', (e) => {
-    const btn = e.target.closest('.seg-btn');
-    if (!btn) return;
-    state.status = btn.dataset.status;
-    $$('#statusFilter .seg-btn').forEach(b => {
-      b.classList.toggle('seg-active', b.dataset.status === state.status);
-    });
-    applyFilters();
-  });
-
-  document.getElementById('categoryFilter').addEventListener('change', (e) => {
-    state.category = e.target.value;
-    applyFilters();
-  });
-
-  document.getElementById('sortSelect').addEventListener('change', (e) => {
-    const [k, dir] = e.target.value.split(':');
-    state.sortKey = k;
-    state.sortDir = dir;
-    applyFilters();
-  });
-
-  document.getElementById('perPage').addEventListener('change', (e) => {
-    state.perPage = +e.target.value;
-    state.page = 1;
-    renderTable();
-  });
-
-  document.getElementById('prevPage').onclick = () => {
-    if (state.page > 1) { state.page--; renderTable(); }
-  };
-  document.getElementById('nextPage').onclick = () => {
-    const totalPages = Math.max(1, Math.ceil(state.filtered.length / state.perPage));
-    if (state.page < totalPages) { state.page++; renderTable(); }
-  };
-
-  document.getElementById('selectAll').addEventListener('change', (e) => {
-    const pageIds = state.filtered
-      .slice((state.page - 1) * state.perPage, state.page * state.perPage)
-      .map(t => t.id);
-    if (e.target.checked) pageIds.forEach(id => state.selected.add(id));
-    else pageIds.forEach(id => state.selected.delete(id));
-    renderTable();
-  });
-
-  document.getElementById('clearFilters').onclick = () => {
-    state.search = '';
-    state.status = 'all';
-    state.category = 'all';
-    document.getElementById('searchInput').value = '';
-    document.getElementById('categoryFilter').value = 'all';
-    $$('#statusFilter .seg-btn').forEach(b => b.classList.toggle('seg-active', b.dataset.status === 'all'));
-    applyFilters();
-  };
-
-  // range buttons on trend
-  $$('.range-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      $$('.range-btn').forEach(b => b.classList.remove('seg-active'));
-      btn.classList.add('seg-active');
-      state.range = +btn.dataset.range;
-      renderTrend();
-    });
-  });
-
-  /* ─────────────────────────  REFRESH / EXPORT / LOGOUT  ───────────────────────── */
-  document.getElementById('refreshBtn').onclick = () => {
-    loadData();
-    toast('Refreshing data…', 'info', 1500);
-  };
-
-  document.getElementById('exportBtn').onclick = () => {
-    if (!state.filtered.length) return toast('Nothing to export', 'warn');
-    exportCSV(state.filtered, `technicians-${new Date().toISOString().slice(0,10)}.csv`);
-  };
-
-  function exportCSV(rows, filename) {
-    if (!rows || !rows.length) return;
-    const cols = Array.from(new Set(rows.flatMap(r => Object.keys(r))));
-    const csv = [
-      cols.join(','),
-      ...rows.map(r => cols.map(c => {
-        const v = r[c] ?? '';
-        const s = String(v).replace(/"/g, '""');
-        return /[",\n]/.test(s) ? `"${s}"` : s;
-      }).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    toast(`Exported ${rows.length} record${rows.length>1?'s':''}`, 'success');
-  }
-
-  document.getElementById('logoutBtn').onclick = async () => {
-    const ok = await confirmDialog({
-      title: 'Log out?',
-      message: 'You will be signed out of the admin console.',
-      confirmText: 'Log out',
-      tone: 'warning'
-    });
-    if (ok) toast('Logged out (demo)', 'info');
-  };
-
-  /* ─────────────────────────  KEYBOARD SHORTCUTS  ───────────────────────── */
-  document.addEventListener('keydown', (e) => {
-    if (e.key === '/' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
-      e.preventDefault();
-      document.getElementById('searchInput').focus();
-      document.getElementById('searchInput').select();
-    }
-    if (e.key === 'Escape') {
-      closeConfirm(false);
-      closeDrawer();
-      closeSidebar();
-      if (document.activeElement === document.getElementById('searchInput')) document.activeElement.blur();
-    }
-    // ⌘K / Ctrl+K
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-      e.preventDefault();
-      document.getElementById('searchInput').focus();
-      document.getElementById('searchInput').select();
-    }
-  });
-
-  /* ─────────────────────────  REALTIME SUBSCRIPTION  ───────────────────────── */
-  function initRealtime() {
-    if (!sb) return;
-    try {
-      const channel = sb.channel('technicians-admin')
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'technicians' },
-          (payload) => {
-            const { eventType, new: nw, old: ol } = payload || {};
-            if (eventType === 'INSERT') {
-              state.all.unshift(nw);
-              toast(`New application from ${nw.name || 'technician'}`, 'info');
-            } else if (eventType === 'UPDATE') {
-              const idx = state.all.findIndex(t => String(t.id) === String(nw.id));
-              if (idx >= 0) state.all[idx] = { ...state.all[idx], ...nw };
-            } else if (eventType === 'DELETE') {
-              state.all = state.all.filter(t => String(t.id) !== String(ol?.id));
-            }
-            buildCategoryFilter();
-            applyFilters();
-            renderStats();
-            renderCharts();
-            updateNavBadge();
-          })
-        .subscribe((status) => {
-          const dot = document.getElementById('realtimeDot');
-          const text = document.getElementById('realtimeText');
-          const badge = document.getElementById('realtimeBadge');
-          if (status === 'SUBSCRIBED') {
-            dot.className = 'w-1.5 h-1.5 rounded-full bg-green-500';
-            text.textContent = 'Live';
-            if (badge) badge.classList.add('ring-1', 'ring-green-500/20');
-          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            dot.className = 'w-1.5 h-1.5 rounded-full bg-red-500';
-            text.textContent = 'Error';
-          } else {
-            dot.className = 'w-1.5 h-1.5 rounded-full bg-gray-400';
-            text.textContent = 'Offline';
-          }
-        });
-      window.__fzChannel = channel;
-    } catch (err) {
-      console.warn('Realtime unavailable:', err);
-    }
-  }
-
-  function updateNavBadge() {
-    const badge = document.getElementById('navTechBadge');
-    const pending = state.all.filter(t => (t.status || 'pending') === 'pending').length;
-    if (pending > 0) {
-      badge.textContent = pending;
-      badge.classList.remove('hidden');
-    } else {
-      badge.classList.add('hidden');
-    }
-  }
-
-  /* ─────────────────────────  GREETING  ───────────────────────── */
-  function setGreeting() {
-    const h = new Date().getHours();
-    const g = h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
-    const el = document.getElementById('greeting');
-    if (el) el.textContent = g;
-  }
-
-  /* ─────────────────────────  NAV ACTIVE STATE  ───────────────────────── */
-  $$('.nav-link').forEach(a => {
-    a.addEventListener('click', (e) => {
-      if (a.getAttribute('href') === '#') {
-        e.preventDefault();
-        $$('.nav-link').forEach(x => x.classList.remove('nav-active'));
-        a.classList.add('nav-active');
-        if (window.innerWidth < 1024) closeSidebar();
-      }
-    });
-  });
-
-  /* ─────────────────────────  INIT  ───────────────────────── */
-  setGreeting();
-  // set default active seg
-  $$('#statusFilter .seg-btn').forEach(b => b.classList.toggle('seg-active', b.dataset.status === 'all'));
-
-  loadData().then(() => {
-    initRealtime();
-  });
-
-  // refresh on window focus (throttled)
-  let lastFocus = 0;
-  window.addEventListener('focus', () => {
-    const now = Date.now();
-    if (now - lastFocus < 30000) return;
-    lastFocus = now;
-    loadData({ silent: true });
-  });
-})();
-</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="admin.js"></script>
 </body>
 </html>
