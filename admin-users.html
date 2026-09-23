@@ -25,11 +25,53 @@ border-radius:20px;
 box-shadow:0 10px 25px rgba(0,0,0,0.05);
 }
 
+/* status dot */
+.dot{
+width:9px;height:9px;border-radius:999px;display:inline-block;
+}
+.dot-live{ background:#22c55e; box-shadow:0 0 0 0 rgba(34,197,94,.6); animation:pulse 1.8s infinite; }
+.dot-down{ background:#e5484d; }
+@keyframes pulse{
+  0%{ box-shadow:0 0 0 0 rgba(34,197,94,.55); }
+  70%{ box-shadow:0 0 0 8px rgba(34,197,94,0); }
+  100%{ box-shadow:0 0 0 0 rgba(34,197,94,0); }
+}
+
+/* new row highlight */
+@keyframes flashRow{
+  0%{ background-color:#fdf3e2; }
+  100%{ background-color:transparent; }
+}
+.row-new{ animation:flashRow 2.4s ease-out; }
+
+/* toast */
+#toastWrap{
+  position:fixed; top:16px; right:16px; z-index:60;
+  display:flex; flex-direction:column; gap:10px; width:320px; max-width:90vw;
+}
+.toast{
+  background:#2a2318; color:#f6efe3; border-radius:14px; padding:14px 16px;
+  box-shadow:0 12px 30px rgba(0,0,0,.25);
+  display:flex; gap:12px; align-items:flex-start;
+  animation:toastIn .25s ease-out;
+}
+@keyframes toastIn{
+  from{ opacity:0; transform:translateY(-8px); }
+  to{ opacity:1; transform:translateY(0); }
+}
+
+th.sortable{ cursor:pointer; user-select:none; }
+th.sortable:hover{ color:#403a31; }
+th .arrow{ opacity:.35; margin-left:4px; }
+th .arrow.active{ opacity:1; }
+
 </style>
 
 </head>
 
 <body class="text-[#403a31]">
+
+<div id="toastWrap"></div>
 
 <!-- HEADER -->
 
@@ -45,11 +87,20 @@ FixZen Admin
 
 </h1>
 
-<p class="text-sm text-gray-500 mt-1">
-Customer Management Dashboard
+<p class="text-sm text-gray-500 mt-1 flex items-center gap-2">
+<span id="statusDot" class="dot dot-down"></span>
+<span id="statusText">Connecting…</span>
 </p>
 
 </div>
+
+<div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+
+<button id="notifyBtn" onclick="enableNotifications()"
+class="px-4 py-3 rounded-xl border bg-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-gray-50">
+<i class="fa-regular fa-bell text-[#b48c5c]"></i>
+<span id="notifyLabel">Enable alerts</span>
+</button>
 
 <div class="relative w-full md:w-80">
 
@@ -61,6 +112,8 @@ placeholder="Search customer or phone..."
 class="w-full pl-9 pr-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#b48c5c]"
 oninput="filterUsers()"
 />
+
+</div>
 
 </div>
 
@@ -93,12 +146,34 @@ oninput="filterUsers()"
 
 </div>
 
+<div class="card p-5 flex justify-between items-center">
+
+<div>
+<p class="text-xs text-gray-500 font-bold">JOBS TODAY</p>
+<h2 id="jobsToday" class="text-3xl font-black mt-1">0</h2>
+</div>
+
+<i class="fa-solid fa-calendar-day text-2xl text-blue-500"></i>
+
+</div>
+
+<div class="card p-5 flex justify-between items-center">
+
+<div>
+<p class="text-xs text-gray-500 font-bold">REPEAT CUSTOMERS</p>
+<h2 id="repeatUsers" class="text-3xl font-black mt-1">0</h2>
+</div>
+
+<i class="fa-solid fa-rotate text-2xl text-purple-500"></i>
+
+</div>
+
 </div>
 
 
 <!-- TABLE -->
 
-<div class="max-w-7xl mx-auto px-6">
+<div class="max-w-7xl mx-auto px-6 pb-16">
 
 <div class="card overflow-x-auto">
 
@@ -108,13 +183,13 @@ oninput="filterUsers()"
 
 <tr>
 
-<th class="p-4 text-left">CUSTOMER</th>
+<th class="p-4 text-left sortable" onclick="setSort('name')">CUSTOMER <span class="arrow" data-col="name">↕</span></th>
 
-<th class="p-4 text-center">PHONE</th>
+<th class="p-4 text-center sortable" onclick="setSort('phone')">PHONE <span class="arrow" data-col="phone">↕</span></th>
 
-<th class="p-4 text-center">TOTAL JOBS</th>
+<th class="p-4 text-center sortable" onclick="setSort('count')">TOTAL JOBS <span class="arrow" data-col="count">↕</span></th>
 
-<th class="p-4 text-center">LAST BOOKING</th>
+<th class="p-4 text-center sortable" onclick="setSort('last')">LAST BOOKING <span class="arrow" data-col="last">↕</span></th>
 
 <th class="p-4 text-center">ACTION</th>
 
@@ -147,15 +222,43 @@ const sb = supabase.createClient(
         );
 
 let allUsers = [];
+let allJobsCount = 0;
+let sortCol = "last";
+let sortDir = "desc";
+let highlightKey = null;
 
+/* ---------- helpers ---------- */
 
-/* LOAD USERS */
+function keyFor(name, phone){
+  return (name || "Unknown") + "_" + (phone || "NA");
+}
+
+function isToday(dateStr){
+  const d = new Date(dateStr);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() &&
+         d.getMonth() === now.getMonth() &&
+         d.getDate() === now.getDate();
+}
+
+function updateStatBar(){
+  document.getElementById("totalUsers").innerText = allUsers.length;
+  document.getElementById("totalBookings").innerText = allJobsCount;
+  document.getElementById("repeatUsers").innerText = allUsers.filter(u => u.count > 1).length;
+}
+
+function recountJobsToday(jobsToday){
+  document.getElementById("jobsToday").innerText = jobsToday;
+}
+
+/* ---------- load ---------- */
 
 async function loadUsers(){
 
 const { data, error } = await sb
 .from("jobs")
-.select("customer_name, phone, created_at");
+.select("customer_name, phone, created_at")
+.order("created_at", { ascending: false });
 
 if(error){
 
@@ -166,14 +269,18 @@ return;
 }
 
 const userMap = {};
+let todayCount = 0;
 
 data.forEach(j=>{
 
-const key = (j.customer_name || "Unknown") + "_" + (j.phone || "NA");
+if(isToday(j.created_at)) todayCount++;
+
+const key = keyFor(j.customer_name, j.phone);
 
 if(!userMap[key]){
 
 userMap[key] = {
+key,
 name: j.customer_name || "Unknown",
 phone: j.phone || "-",
 count: 0,
@@ -191,17 +298,64 @@ userMap[key].last = j.created_at;
 });
 
 allUsers = Object.values(userMap);
+allJobsCount = data.length;
 
-document.getElementById("totalUsers").innerText = allUsers.length;
-document.getElementById("totalBookings").innerText = data.length;
-
-renderUsers(allUsers);
+updateStatBar();
+recountJobsToday(todayCount);
+renderUsers(getFiltered());
 
 }
 
 
+/* ---------- sort / filter / render ---------- */
+
+function setSort(col){
+  if(sortCol === col){
+    sortDir = sortDir === "asc" ? "desc" : "asc";
+  } else {
+    sortCol = col;
+    sortDir = col === "name" || col === "phone" ? "asc" : "desc";
+  }
+  document.querySelectorAll("th .arrow").forEach(a=>{
+    a.classList.remove("active");
+    a.innerText = "↕";
+  });
+  const active = document.querySelector(`th .arrow[data-col="${col}"]`);
+  if(active){
+    active.classList.add("active");
+    active.innerText = sortDir === "asc" ? "↑" : "↓";
+  }
+  renderUsers(getFiltered());
+}
+
+function sortUsers(list){
+  const sorted = [...list];
+  sorted.sort((a,b)=>{
+    let av = a[sortCol], bv = b[sortCol];
+    if(sortCol === "last"){ av = new Date(av).getTime(); bv = new Date(bv).getTime(); }
+    if(sortCol === "name" || sortCol === "phone"){ av = av.toLowerCase(); bv = bv.toLowerCase(); }
+    if(av < bv) return sortDir === "asc" ? -1 : 1;
+    if(av > bv) return sortDir === "asc" ? 1 : -1;
+    return 0;
+  });
+  return sorted;
+}
+
+function getFiltered(){
+  const q = document.getElementById("searchInput").value.toLowerCase();
+  return allUsers.filter(u =>
+    u.name.toLowerCase().includes(q) ||
+    u.phone.toLowerCase().includes(q)
+  );
+}
+
+function filterUsers(){
+  renderUsers(getFiltered());
+}
 
 function renderUsers(users){
+
+users = sortUsers(users);
 
 const table = document.getElementById("userTable");
 
@@ -223,9 +377,11 @@ return;
 
 users.forEach(u=>{
 
+const rowClass = u.key === highlightKey ? "row-new" : "";
+
 table.innerHTML += `
 
-<tr class="border-t hover:bg-gray-50 transition">
+<tr class="border-t hover:bg-gray-50 transition ${rowClass}">
 
 <td class="p-4 flex items-center gap-3">
 
@@ -257,7 +413,7 @@ ${u.count}
 
 <td class="p-4 text-center text-sm text-gray-500">
 
-${new Date(u.last).toLocaleDateString()}
+${new Date(u.last).toLocaleString()}
 
 </td>
 
@@ -279,23 +435,9 @@ VIEW HISTORY
 
 });
 
-}
-
-
-
-function filterUsers(){
-
-const q = document.getElementById("searchInput").value.toLowerCase();
-
-const filtered = allUsers.filter(u =>
-u.name.toLowerCase().includes(q) ||
-u.phone.toLowerCase().includes(q)
-);
-
-renderUsers(filtered);
+highlightKey = null;
 
 }
-
 
 
 function viewHistory(phone){
@@ -304,6 +446,143 @@ window.location.href =
 "user-history.html?phone=" + encodeURIComponent(phone);
 
 }
+
+
+/* ---------- notifications ---------- */
+
+let notifPermission = ("Notification" in window) ? Notification.permission : "unsupported";
+
+function refreshNotifyButton(){
+  const label = document.getElementById("notifyLabel");
+  const icon = document.querySelector("#notifyBtn i");
+  if(notifPermission === "granted"){
+    label.innerText = "Alerts on";
+    icon.className = "fa-solid fa-bell text-green-600";
+  } else if(notifPermission === "unsupported"){
+    label.innerText = "Alerts unsupported";
+    icon.className = "fa-regular fa-bell text-gray-400";
+  } else {
+    label.innerText = "Enable alerts";
+    icon.className = "fa-regular fa-bell text-[#b48c5c]";
+  }
+}
+refreshNotifyButton();
+
+async function enableNotifications(){
+  if(!("Notification" in window)){
+    notifPermission = "unsupported";
+    refreshNotifyButton();
+    return;
+  }
+  const perm = await Notification.requestPermission();
+  notifPermission = perm;
+  refreshNotifyButton();
+  if(perm === "granted"){
+    showToast("Alerts enabled", "You'll be notified here and by your browser when a new job comes in.");
+  }
+}
+
+function playChime(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(880, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.15);
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+    o.connect(g).connect(ctx.destination);
+    o.start();
+    o.stop(ctx.currentTime + 0.5);
+  }catch(e){ /* audio not available, ignore */ }
+}
+
+function showToast(title, body){
+  const wrap = document.getElementById("toastWrap");
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.innerHTML = `
+    <i class="fa-solid fa-bell text-[#e8c98a] mt-0.5"></i>
+    <div class="flex-1">
+      <p class="font-bold text-sm">${title}</p>
+      <p class="text-xs text-[#cfc6b3] mt-0.5">${body}</p>
+    </div>
+    <button class="text-[#cfc6b3] hover:text-white" onclick="this.closest('.toast').remove()">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  `;
+  wrap.prepend(el);
+  setTimeout(()=> el.remove(), 8000);
+}
+
+function handleNewJob(job){
+
+  playChime();
+
+  const key = keyFor(job.customer_name, job.phone);
+  const existing = allUsers.find(u => u.key === key);
+
+  if(existing){
+    existing.count++;
+    existing.last = job.created_at;
+  } else {
+    allUsers.push({
+      key,
+      name: job.customer_name || "Unknown",
+      phone: job.phone || "-",
+      count: 1,
+      last: job.created_at
+    });
+  }
+
+  allJobsCount++;
+  highlightKey = key;
+
+  updateStatBar();
+  if(isToday(job.created_at)){
+    document.getElementById("jobsToday").innerText =
+      parseInt(document.getElementById("jobsToday").innerText, 10) + 1;
+  }
+  renderUsers(getFiltered());
+
+  const name = job.customer_name || "A customer";
+  showToast("New job booked", `${name} — ${job.phone || "no phone"}`);
+
+  if(notifPermission === "granted"){
+    new Notification("FixZen — New job booked", {
+      body: `${name} · ${job.phone || "no phone"}`,
+      icon: "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/svgs/solid/screwdriver-wrench.svg"
+    });
+  }
+}
+
+
+/* ---------- realtime connection ---------- */
+
+function setStatus(live){
+  const dot = document.getElementById("statusDot");
+  const text = document.getElementById("statusText");
+  if(live){
+    dot.className = "dot dot-live";
+    text.innerText = "Live — watching for new jobs";
+  } else {
+    dot.className = "dot dot-down";
+    text.innerText = "Reconnecting…";
+  }
+}
+
+const channel = sb
+  .channel("jobs-changes")
+  .on(
+    "postgres_changes",
+    { event: "INSERT", schema: "public", table: "jobs" },
+    (payload) => handleNewJob(payload.new)
+  )
+  .subscribe((status) => {
+    setStatus(status === "SUBSCRIBED");
+  });
 
 
 loadUsers();
