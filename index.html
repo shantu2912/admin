@@ -1,194 +1,447 @@
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FixZen Admin - Management Console</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
-
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'brand-olive': '#5D5646',
-                        'brand-gold': '#A07D54',
-                        'brand-cream': '#EEEAE2',
-                        'brand-dark': '#4D4C4B',
-                    },
-                    fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-                        serif: ['"Playfair Display"', 'serif'],
-                    },
-                    boxShadow: {
-                        'super-float': '0 30px 60px -15px rgba(93, 86, 70, 0.25)',
-                    }
-                }
-            }
-        }
-    </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>FixZenix Admin - Command Center</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config={theme:{extend:{colors:{'brand-olive':'#5D5646','brand-gold':'#A07D54','brand-cream':'#EEEAE2','brand-dark':'#4D4C4B'},fontFamily:{sans:['"Plus Jakarta Sans"','sans-serif']}}}}
+</script>
+<style>
+  main section.bg-white,main section>div.bg-white{box-shadow:0 1px 2px rgba(93,86,70,.06),0 14px 34px -14px rgba(93,86,70,.22)}
+  main section>div.bg-white{border-radius:1.5rem;transition:transform .2s}
+  main section>div.bg-white:hover{transform:translateY(-2px)}
+  .tab-on{background:#5D5646;color:#fff}
+  @keyframes flash{from{background:#f5ecd9}to{background:transparent}}
+  .new-row{animation:flash 3s ease-out}
+  @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.3}}
+  .live-dot{animation:pulse-dot 1.6s infinite}
+  @media (prefers-reduced-motion:reduce){.new-row,.live-dot{animation:none}}
+  button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #A07D54;outline-offset:2px}
+</style>
 </head>
+<body class="bg-brand-cream text-brand-dark antialiased font-sans" x-data="{sidebarOpen:false}">
 
-<body class="bg-brand-cream text-brand-dark antialiased font-sans" x-data="{ sidebarOpen: false }">
+<header class="bg-white/85 backdrop-blur-md sticky top-0 z-40 border-b border-brand-olive/10 px-4 sm:px-6 py-3 flex justify-between items-center">
+  <div class="flex items-center gap-4">
+    <button @click="sidebarOpen=true" aria-label="Open menu" class="text-brand-olive"><i class="fa-solid fa-bars-staggered text-xl"></i></button>
+    <h1 class="text-xl font-extrabold tracking-tighter text-brand-olive">FIX <span class="text-brand-gold">ZEN</span> <span class="text-xs font-medium ml-2 opacity-50">Admin</span></h1>
+  </div>
+  <div class="flex items-center gap-3">
+    <span id="liveBadge" class="hidden sm:flex items-center gap-2 text-xs font-semibold text-brand-olive"><span class="live-dot w-2 h-2 rounded-full bg-gray-300" id="liveDot"></span><span id="liveText">Connecting</span></span>
+    <button id="refreshBtn" aria-label="Refresh" class="w-9 h-9 hover:bg-brand-cream rounded-full"><i class="fa-solid fa-rotate text-brand-olive"></i></button>
+    <img src="https://ui-avatars.com/api/?background=5D5646&color=fff&name=Admin" alt="" class="w-9 h-9 rounded-full border-2 border-brand-gold">
+  </div>
+</header>
 
-    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-brand-olive/10 px-6 py-4 flex justify-between items-center">
-        <div class="flex items-center gap-4">
-            <button @click="sidebarOpen = true" class="text-brand-olive hover:scale-110 transition-transform">
-                <i class="fa-solid fa-bars-staggered text-xl"></i>
-            </button>
-            <h1 class="text-xl font-extrabold tracking-tighter text-brand-olive">
-                FIX <span class="text-brand-gold">ZEN</span> <span class="text-[10px] uppercase tracking-[0.3em] ml-2 opacity-50">Admin</span>
-            </h1>
-        </div>
-        
-        <div class="flex items-center gap-4">
-            <button onclick="location.reload()" class="p-2 hover:bg-brand-cream rounded-full transition-colors">
-                <i class="fa-solid fa-rotate text-brand-olive"></i>
-            </button>
-            <div class="w-10 h-10 rounded-full border-2 border-brand-gold p-0.5">
-                <img src="https://ui-avatars.com/api/?background=5D5646&color=fff&name=Admin" class="rounded-full">
-            </div>
-        </div>
-        
-    </header>
-
-    <main class="max-w-6xl mx-auto p-6 pb-32">
-        
-        <div class="mb-10">
-            <h2 class="text-3xl font-bold text-brand-olive">Command Center</h2>
-            <p class="text-brand-dark/60 text-sm">Overseeing technician registrations and platform health.</p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-white flex flex-col items-center justify-center group hover:border-yellow-500/30 transition-all">
-                <div class="w-12 h-12 bg-yellow-50 rounded-2xl flex items-center justify-center text-yellow-600 mb-4 group-hover:scale-110 transition-transform">
-                    <i class="fa-solid fa-clock-rotate-left text-xl"></i>
-                </div>
-                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Pending Verification</p>
-                <p id="pendingCount" class="text-4xl font-extrabold text-brand-olive mt-1">0</p>
-            </div>
-
-            <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-white flex flex-col items-center justify-center group hover:border-green-500/30 transition-all">
-                <div class="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600 mb-4 group-hover:scale-110 transition-transform">
-                    <i class="fa-solid fa-user-check text-xl"></i>
-                </div>
-                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Active Partners</p>
-                <p id="approvedCount" class="text-4xl font-extrabold text-brand-olive mt-1">0</p>
-            </div>
-
-            <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-white flex flex-col items-center justify-center group hover:border-red-500/30 transition-all">
-                <div class="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 mb-4 group-hover:scale-110 transition-transform">
-                    <i class="fa-solid fa-user-xmark text-xl"></i>
-                </div>
-                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rejected Applications</p>
-                <p id="rejectedCount" class="text-4xl font-extrabold text-brand-olive mt-1">0</p>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-[2.5rem] shadow-super-float overflow-hidden border border-white/50">
-            <div class="px-8 py-6 border-b border-brand-cream flex justify-between items-center bg-gray-50/50">
-                <h3 class="font-bold text-brand-olive">Partnership Requests</h3>
-                <div class="flex gap-2">
-                    <span class="px-3 py-1 bg-brand-olive text-white text-[10px] font-bold rounded-full uppercase tracking-tighter">Live Updates</span>
-                </div>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="text-brand-dark/40 border-b border-brand-cream">
-                            <th class="px-8 py-5 text-[10px] font-bold uppercase tracking-widest">Technician Profile</th>
-                            <th class="px-8 py-5 text-[10px] font-bold uppercase tracking-widest">Category</th>
-                            <th class="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-center">Status</th>
-                            <th class="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="techList" class="divide-y divide-brand-cream/50">
-                        </tbody>
-                </table>
-            </div>
-        </div>
-    </main>
-
-    <div class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-50">
-    <div class="bg-brand-olive/95 backdrop-blur-xl rounded-full p-2 flex justify-between items-center shadow-2xl border border-white/10">
-        <a href="admin.html" class="w-12 h-12 flex items-center justify-center text-white/50 hover:text-brand-gold transition-colors">
-            <i class="fa-solid fa-users-gear text-xl"></i>
-        </a>
-        
-        <a href="admin-jobs.html" class="bg-brand-gold text-white px-6 py-3 rounded-full flex items-center gap-2 transition-all shadow-lg">
-            <i class="fa-solid fa-calendar-check"></i>
-            <span class="text-xs font-bold">Manage Jobs</span>
-        </a>
-
-        <a href="index.html" class="w-12 h-12 flex items-center justify-center text-white/50 hover:text-brand-gold transition-colors">
-            <i class="fa-solid fa-eye text-xl"></i>
-        </a>
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-32">
+  <section class="mb-6 rounded-[2rem] bg-brand-olive text-white p-6 sm:p-8 flex flex-wrap items-center justify-between gap-6 shadow-xl">
+    <div>
+      <p id="greet" class="text-white/60 text-sm"></p>
+      <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1">Command Center</h2>
+      <p class="text-white/70 text-sm mt-2 max-w-md">New orders appear here the moment customers place them. <span id="lastSync"></span></p>
     </div>
+    <div class="flex gap-3">
+      <div class="bg-white/10 rounded-2xl px-5 py-4"><p id="hOrders" class="text-3xl font-extrabold">0</p><p class="text-xs text-white/60">orders to act on</p></div>
+      <div class="bg-white/10 rounded-2xl px-5 py-4"><p id="hTechs" class="text-3xl font-extrabold">0</p><p class="text-xs text-white/60">technicians to verify</p></div>
+    </div>
+  </section>
+
+  <!-- KPIs -->
+  <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+    <div class="bg-white rounded-2xl p-5 border-l-4 border-brand-gold">
+      <p class="text-xs font-semibold text-brand-dark/50">Orders today</p>
+      <p id="kOrdersToday" class="text-3xl font-extrabold text-brand-olive mt-1">0</p>
+      <p id="kOrdersDelta" class="text-xs text-brand-dark/50 mt-1">&nbsp;</p>
+    </div>
+    <div class="bg-white rounded-2xl p-5 border-l-4 border-yellow-500">
+      <p class="text-xs font-semibold text-brand-dark/50">Waiting for action</p>
+      <p id="kOrdersPending" class="text-3xl font-extrabold text-brand-olive mt-1">0</p>
+      <p class="text-xs text-brand-dark/50 mt-1">Unassigned or pending orders</p>
+    </div>
+    <div class="bg-white rounded-2xl p-5 border-l-4 border-green-500">
+      <p class="text-xs font-semibold text-brand-dark/50">Revenue today</p>
+      <p id="kRevenue" class="text-3xl font-extrabold text-brand-olive mt-1">₹0</p>
+      <p class="text-xs text-brand-dark/50 mt-1">Completed orders only</p>
+    </div>
+    <div class="bg-white rounded-2xl p-5 border-l-4 border-brand-olive">
+      <p class="text-xs font-semibold text-brand-dark/50">Technicians</p>
+      <p class="text-3xl font-extrabold text-brand-olive mt-1"><span id="pendingCount">0</span> <span class="text-sm font-semibold text-brand-dark/50">to verify</span></p>
+      <p class="text-xs text-brand-dark/50 mt-1"><span id="approvedCount">0</span> active, <span id="rejectedCount">0</span> rejected</p>
+    </div>
+  </section>
+
+  <div class="grid lg:grid-cols-3 gap-6">
+    <!-- ORDERS -->
+    <section class="lg:col-span-2 bg-white rounded-3xl overflow-hidden shadow-sm">
+      <div class="p-5 border-b border-brand-cream flex flex-wrap gap-3 items-center justify-between">
+        <h3 class="font-bold text-brand-olive text-lg">Customer orders</h3>
+        <button id="exportBtn" class="text-xs font-semibold text-brand-olive px-4 py-2 rounded-full border border-brand-olive/20 hover:bg-brand-cream">Export CSV</button>
+        <input id="orderSearch" type="search" placeholder="Search name, phone or service" class="w-full sm:w-64 text-sm px-4 py-2 rounded-full bg-brand-cream/60 border border-transparent focus:bg-white">
+      </div>
+      <div id="orderTabs" class="px-5 py-3 flex gap-2 overflow-x-auto text-xs font-semibold border-b border-brand-cream"></div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="text-brand-dark/50 text-xs"><tr>
+            <th class="px-5 py-3 font-semibold">Customer</th><th class="px-5 py-3 font-semibold">Service</th>
+            <th class="px-5 py-3 font-semibold">Placed</th><th class="px-5 py-3 font-semibold text-right">Amount</th>
+            <th class="px-5 py-3 font-semibold">Status</th></tr></thead>
+          <tbody id="orderList" class="divide-y divide-brand-cream/60"></tbody>
+        </table>
+      </div>
+      <p id="orderEmpty" class="hidden p-10 text-center text-sm text-brand-dark/50">No orders match this filter.</p>
+    </section>
+
+    <!-- SIDE -->
+    <div class="space-y-6">
+      <section class="bg-white rounded-3xl p-5 shadow-sm">
+        <h3 class="font-bold text-brand-olive mb-1">Orders, last 7 days</h3>
+        <p id="chartNote" class="text-xs text-brand-dark/50 mb-3"></p>
+        <div id="chart" class="flex items-end gap-2 h-32"></div>
+      </section>
+
+      <section class="bg-white rounded-3xl overflow-hidden shadow-sm">
+        <div class="p-5 border-b border-brand-cream flex items-center justify-between">
+          <h3 class="font-bold text-brand-olive">Technician requests</h3>
+          <div class="flex gap-1 text-xs font-semibold" id="techTabs"></div>
+        </div>
+        <ul id="techList" class="divide-y divide-brand-cream/60 max-h-[26rem] overflow-y-auto"></ul>
+      </section>
+    </div>
+  </div>
+</main>
+
+<div id="gate" class="fixed inset-0 z-[200] bg-brand-cream flex items-center justify-center p-4">
+  <form id="loginForm" class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-8" autocomplete="on">
+    <h1 class="text-2xl font-extrabold tracking-tighter text-brand-olive">FIX <span class="text-brand-gold">ZEN</span></h1>
+    <p class="text-sm text-brand-dark/60 mt-1 mb-6">Sign in to the admin console.</p>
+    <button type="button" id="googleBtn" class="w-full mb-4 py-3 rounded-xl border border-brand-olive/20 bg-white text-brand-olive font-bold text-sm flex items-center justify-center gap-2 hover:bg-brand-cream"><i class="fa-brands fa-google"></i> Continue with Google</button>
+    <p class="text-xs text-brand-dark/50 text-center mb-4">or use email and password</p>
+    <label for="email" class="text-xs font-semibold text-brand-olive">Email</label>
+    <input id="email" type="email" required autocomplete="username" class="w-full mt-1 mb-4 px-4 py-3 rounded-xl bg-brand-cream/60 border border-transparent focus:bg-white">
+    <label for="password" class="text-xs font-semibold text-brand-olive">Password</label>
+    <input id="password" type="password" required autocomplete="current-password" class="w-full mt-1 mb-2 px-4 py-3 rounded-xl bg-brand-cream/60 border border-transparent focus:bg-white">
+    <p id="gateErr" role="alert" class="text-xs text-red-600 min-h-[1.25rem]"></p>
+    <button id="loginBtn" class="w-full mt-2 py-3 rounded-xl bg-brand-olive text-white font-bold hover:bg-brand-gold transition-colors">Sign in</button>
+  </form>
 </div>
 
-    <div x-show="sidebarOpen" class="fixed inset-0 z-[100]" style="display: none;">
-        <div class="absolute inset-0 bg-brand-olive/60 backdrop-blur-md" @click="sidebarOpen = false"></div>
-        <aside class="absolute left-0 top-0 h-full w-72 bg-white shadow-2xl p-8"
-               x-transition:enter="transition ease-out duration-300 transform"
-               x-transition:enter-start="-translate-x-full"
-               x-transition:enter-end="translate-x-0">
-            <h2 class="font-extrabold text-2xl text-brand-olive mb-10">ADMIN MENU</h2>
-            <nav class="space-y-6">
-                <a href="#" class="flex items-center gap-4 text-brand-olive font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-users-gear w-6"></i> Technician Approval
-                </a>
-                <a href="admin-jobs.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-clipboard-list w-6"></i> Booking Logs
-                </a>
-                 <a href="admin-dashboard.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-clipboard-list w-6"></i>Analytics Dashboard
-                </a>
-                 <a href="admin-analytics.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-clipboard-list w-6"></i> Financial,job & platform efficiency
-                </a>
-                <a href="adminfeedback.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-clipboard-list w-6"></i> Feedback & Reviews 
-                </a>
-                 <a href="admin-users.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-clipboard-list w-6"></i> Customer Management Dashboard
-                </a>
-
-		 <a href="admin_banner.html" class="nav-link">
-        	<i class="fa-solid fa-tags w-5 text-center text-[14px]"></i>
-        	<span>Banner</span>
-      		</a>
-
-        	<a href="admin_ticker.html" class="nav-link">
-       		<i class="fa-solid fa-tags w-5 text-center text-[14px]"></i>
-        	<span>Ticker</span>
-      		</a>
-                 </a>
-                 <a href="fz-technician-admin.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-clipboard-list w-6"></i> fz-technician-admin
-                </a>
-
-                <a href="admin-pricing.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-clipboard-list w-6"></i> Service Price
-                </a>
-                 <a href="admin-payouts.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-clipboard-list w-6"></i>  Partner Payouts
-                </a>
-                <a href="index.html" class="flex items-center gap-4 text-brand-olive/60 font-bold hover:text-brand-gold">
-                    <i class="fa-solid fa-house w-6"></i> Public Site
-                </a>
-                <div class="pt-10">
-                    <button class="w-full py-3 rounded-xl bg-red-50 text-red-600 font-bold text-xs uppercase tracking-widest border border-red-100">Logout</button>
-                </div>
-            </nav>
-        </aside>
+<div id="drawer" class="fixed inset-0 z-[120] hidden">
+  <div id="drawerBg" class="absolute inset-0 bg-brand-olive/50 backdrop-blur-sm"></div>
+  <aside class="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl p-6 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="dTitle">
+    <div class="flex justify-between items-start mb-6">
+      <div><p class="text-xs text-brand-dark/50">Order details</p><h3 id="dTitle" class="text-xl font-bold text-brand-olive"></h3></div>
+      <button id="dClose" aria-label="Close" class="w-9 h-9 rounded-full hover:bg-brand-cream"><i class="fa-solid fa-xmark"></i></button>
     </div>
+    <div id="dBody"></div>
+  </aside>
+</div>
+
+<div id="toast" class="fixed top-20 right-4 z-[90] hidden bg-brand-olive text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-xl"></div>
+
+<nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-50">
+  <div class="bg-brand-olive/95 backdrop-blur-xl rounded-full p-2 flex justify-between items-center shadow-2xl">
+    <a href="admin.html" aria-label="Technicians" class="w-12 h-12 flex items-center justify-center text-brand-gold"><i class="fa-solid fa-users-gear text-xl"></i></a>
+    <a href="admin-jobs.html" class="bg-brand-gold text-white px-6 py-3 rounded-full flex items-center gap-2 shadow-lg"><i class="fa-solid fa-calendar-check"></i><span class="text-xs font-bold">Manage Jobs</span></a>
+    <a href="index.html" aria-label="Public site" class="w-12 h-12 flex items-center justify-center text-white/60 hover:text-brand-gold"><i class="fa-solid fa-eye text-xl"></i></a>
+  </div>
+</nav>
+
+<div x-show="sidebarOpen" class="fixed inset-0 z-[100]" style="display:none">
+  <div class="absolute inset-0 bg-brand-olive/60 backdrop-blur-md" @click="sidebarOpen=false"></div>
+  <aside class="absolute left-0 top-0 h-full w-72 bg-white shadow-2xl p-8 overflow-y-auto"
+    x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0">
+    <h2 class="font-extrabold text-2xl text-brand-olive mb-8">Admin menu</h2>
+    <nav class="space-y-5 text-sm font-bold text-brand-olive/70">
+      <a href="admin.html" class="flex items-center gap-4 text-brand-olive"><i class="fa-solid fa-gauge w-6"></i> Command Center</a>
+      <a href="admin-jobs.html" class="flex items-center gap-4 hover:text-brand-gold"><i class="fa-solid fa-clipboard-list w-6"></i> Booking logs</a>
+      <a href="admin-dashboard.html" class="flex items-center gap-4 hover:text-brand-gold"><i class="fa-solid fa-chart-line w-6"></i> Analytics dashboard</a>
+      <a href="admin-analytics.html" class="flex items-center gap-4 hover:text-brand-gold"><i class="fa-solid fa-coins w-6"></i> Finance and efficiency</a>
+      <a href="adminfeedback.html" class="flex items-center gap-4 hover:text-brand-gold"><i class="fa-solid fa-star w-6"></i> Feedback and reviews</a>
+      <a href="admin-users.html" class="flex items-center gap-4 hover:text-brand-gold"><i class="fa-solid fa-users w-6"></i> Customers</a>
+      <a href="admin_banner.html" class="flex items-center gap-4 hover:text-brand-gold"><i class="fa-solid fa-image w-6"></i> Banner</a>
+      <a href="admin_ticker.html" class="flex items-center gap-4 hover:text-brand-gold"><i class="fa-solid fa-tags w-6"></i> Ticker</a>
+      <a href="fz-technician-admin.html" class="flex items-center gap-4 hover:text-brand-gold"><i class="fa-solid fa-screwdriver-wrench w-6"></i> Technician admin</a>
+      <a href="admin-pricing.html" class="flex items-center gap-4 hover:text-brand-gold"><i class="fa-solid fa-indian-rupee-sign w-6"></i> Service prices</a>
+      <a href="admin-payouts.html" class="flex items-center gap-4 hover:text-brand-gold"><i class="fa-solid fa-wallet w-6"></i> Partner payouts</a>
+      <a href="index.html" class="flex items-center gap-4 hover:text-brand-gold"><i class="fa-solid fa-house w-6"></i> Public site</a>
+      <button id="logoutBtn" class="w-full mt-6 py-3 rounded-xl bg-red-50 text-red-600 font-bold text-xs border border-red-100">Log out</button>
+    </nav>
+  </aside>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module" src="admin.js"></script>
+<script>
+/* ===== CONFIG: change these to match your database ===== */
+const ORDERS_TABLE = 'jobs';          // your orders/bookings table name
+const DONE = ['completed', 'done'];       // statuses that count as revenue
+const ORDER_STATUSES = ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled'];
+/* Column fallbacks: first one that exists on the row is used */
+const COL = {
+  name:    ['customer_name', 'name', 'user_name'],
+  phone:   ['customer_phone', 'phone', 'mobile'],
+  service: ['service', 'service_name', 'category'],
+  amount:  ['amount', 'total', 'price', 'total_amount'],
+  tech:    ['technician_id', 'assigned_to']
+};
+
+window.sb = supabase.createClient(
+  "https://kzxdxnxgouthsywbsnvl.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6eGR4bnhnb3V0aHN5d2JzbnZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMTczMzIsImV4cCI6MjA4MTg5MzMzMn0.nqzn89vmTFKVNuZPHfGRxdTg6UHT6GMud238rr49qag"
+);
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pick = (o, keys) => { for (const k of keys) if (o[k] !== undefined && o[k] !== null) return o[k]; return ''; };
+const inr = n => '₹' + Number(n || 0).toLocaleString('en-IN');
+const lc = s => String(s || 'pending').toLowerCase();
+
+let orders = [], techs = [];
+let orderFilter = 'all', techFilter = 'pending', query = '';
+const freshIds = new Set();
+
+const ORDER_TABS = {
+  all: { label: 'All', test: () => true },
+  pending: { label: 'Pending', test: o => lc(o.status) === 'pending' },
+  active: { label: 'Active', test: o => ['confirmed', 'accepted', 'in_progress', 'assigned'].includes(lc(o.status)) },
+  completed: { label: 'Completed', test: o => DONE.includes(lc(o.status)) },
+  cancelled: { label: 'Cancelled', test: o => ['cancelled', 'canceled', 'rejected'].includes(lc(o.status)) }
+};
+const BADGE = {
+  pending: 'bg-yellow-100 text-yellow-800', confirmed: 'bg-blue-100 text-blue-800', accepted: 'bg-blue-100 text-blue-800',
+  in_progress: 'bg-indigo-100 text-indigo-800', completed: 'bg-green-100 text-green-800', done: 'bg-green-100 text-green-800',
+  cancelled: 'bg-red-100 text-red-800', approved: 'bg-green-100 text-green-800', rejected: 'bg-red-100 text-red-800'
+};
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.remove('hidden');
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.add('hidden'), 4000);
+}
+function ago(d) {
+  const m = Math.floor((Date.now() - new Date(d)) / 60000);
+  if (m < 1) return 'just now'; if (m < 60) return m + ' min ago';
+  if (m < 1440) return Math.floor(m / 60) + ' h ago';
+  return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+const isToday = d => new Date(d).toDateString() === new Date().toDateString();
+
+/* ===== DATA ===== */
+async function loadOrders() {
+  const { data, error } = await sb.from(ORDERS_TABLE).select('*').order('created_at', { ascending: false }).limit(300);
+  if (error) {
+    $('orderList').innerHTML = '';
+    $('orderEmpty').textContent = `Could not load "${ORDERS_TABLE}": ${error.message}. Check ORDERS_TABLE in admin.js and your RLS policies.`;
+    $('orderEmpty').classList.remove('hidden');
+    return;
+  }
+  orders = data || [];
+  renderOrders(); renderKpis(); renderChart(); renderHero();
+}
+async function loadTechs() {
+  const { data, error } = await sb.from('technicians').select('*').order('created_at', { ascending: false });
+  if (error) return console.error('Error loading technicians:', error);
+  techs = data || [];
+  $('pendingCount').innerText = techs.filter(t => t.status === 'pending').length;
+  $('approvedCount').innerText = techs.filter(t => t.status === 'approved').length;
+  $('rejectedCount').innerText = techs.filter(t => t.status === 'rejected').length;
+  renderHero();
+  renderTechs();
+}
+async function loadAll() {
+  await Promise.all([loadOrders(), loadTechs()]);
+  $('lastSync').textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+}
+
+/* ===== RENDER: KPIs + CHART ===== */
+function renderKpis() {
+  const today = orders.filter(o => isToday(o.created_at));
+  const yest = orders.filter(o => new Date(o.created_at).toDateString() === new Date(Date.now() - 864e5).toDateString());
+  $('kOrdersToday').textContent = today.length;
+  const diff = today.length - yest.length;
+  $('kOrdersDelta').textContent = diff === 0 ? 'Same as yesterday' : `${Math.abs(diff)} ${diff > 0 ? 'more' : 'fewer'} than yesterday`;
+  $('kOrdersPending').textContent = orders.filter(ORDER_TABS.pending.test).length;
+  $('kRevenue').textContent = inr(today.filter(ORDER_TABS.completed.test).reduce((s, o) => s + Number(pick(o, COL.amount) || 0), 0));
+}
+function renderChart() {
+  const days = [...Array(7)].map((_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d; });
+  const counts = days.map(d => orders.filter(o => new Date(o.created_at).toDateString() === d.toDateString()).length);
+  const max = Math.max(...counts, 1);
+  $('chartNote').textContent = counts.reduce((a, b) => a + b, 0) + ' orders this week';
+  $('chart').innerHTML = days.map((d, i) => `
+    <div class="flex-1 flex flex-col items-center justify-end h-full gap-1">
+      <span class="text-[11px] font-semibold text-brand-olive">${counts[i]}</span>
+      <div class="w-full rounded-t-md ${i === 6 ? 'bg-brand-gold' : 'bg-brand-olive/30'}" style="height:${Math.max(counts[i] / max * 100, 4)}%"></div>
+      <span class="text-[11px] text-brand-dark/50">${d.toLocaleDateString('en-IN', { weekday: 'short' })}</span>
+    </div>`).join('');
+}
+
+/* ===== RENDER: ORDERS ===== */
+function renderTabs() {
+  $('orderTabs').innerHTML = Object.entries(ORDER_TABS).map(([k, t]) => {
+    const n = orders.filter(t.test).length;
+    return `<button data-tab="${k}" class="px-4 py-2 rounded-full whitespace-nowrap ${orderFilter === k ? 'tab-on' : 'bg-brand-cream/70 text-brand-olive'}">${t.label} <span class="opacity-60">${n}</span></button>`;
+  }).join('');
+}
+function renderOrders() {
+  renderTabs();
+  const q = query.toLowerCase();
+  const rows = orders.filter(ORDER_TABS[orderFilter].test).filter(o =>
+    !q || [pick(o, COL.name), pick(o, COL.phone), pick(o, COL.service)].join(' ').toLowerCase().includes(q));
+  $('orderEmpty').textContent = 'No orders match this filter.';
+  $('orderEmpty').classList.toggle('hidden', rows.length > 0);
+  $('orderList').innerHTML = rows.slice(0, 100).map(o => {
+    const s = lc(o.status);
+    const opts = [...new Set([...ORDER_STATUSES, s])].map(x => `<option value="${esc(x)}" ${x === s ? 'selected' : ''}>${esc(x.replace('_', ' '))}</option>`).join('');
+    return `<tr data-open="${esc(o.id)}" class="cursor-pointer hover:bg-brand-cream/30 ${freshIds.has(o.id) ? 'new-row' : ''}">
+      <td class="px-5 py-3"><p class="font-semibold text-brand-olive">${esc(pick(o, COL.name)) || 'Unnamed customer'}</p>
+        <p class="text-xs text-brand-dark/50">${esc(pick(o, COL.phone))}</p></td>
+      <td class="px-5 py-3">${esc(pick(o, COL.service)) || '-'}</td>
+      <td class="px-5 py-3 text-brand-dark/60 whitespace-nowrap">${ago(o.created_at)}</td>
+      <td class="px-5 py-3 text-right font-semibold">${inr(pick(o, COL.amount))}</td>
+      <td class="px-5 py-3"><select data-order="${esc(o.id)}" aria-label="Order status" class="text-xs font-semibold rounded-full px-3 py-1.5 border-0 ${BADGE[s] || 'bg-gray-100 text-gray-700'}">${opts}</select></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ===== RENDER: TECHNICIANS ===== */
+function renderTechs() {
+  $('techTabs').innerHTML = ['pending', 'approved', 'rejected'].map(k =>
+    `<button data-tt="${k}" class="px-3 py-1.5 rounded-full capitalize ${techFilter === k ? 'tab-on' : 'bg-brand-cream/70 text-brand-olive'}">${k}</button>`).join('');
+  const rows = techs.filter(t => t.status === techFilter);
+  $('techList').innerHTML = rows.length ? rows.map(t => `
+    <li class="px-5 py-4 flex items-center justify-between gap-3">
+      <div class="min-w-0"><p class="font-semibold text-brand-olive truncate">${esc(t.name)}</p>
+        <p class="text-xs text-brand-dark/50 truncate">${esc(t.category)} &middot; ${esc(t.phone)}</p></div>
+      <div class="flex gap-2 shrink-0">
+        ${t.status !== 'approved' ? `<button data-tech="${esc(t.id)}" data-to="approved" aria-label="Approve ${esc(t.name)}" class="w-9 h-9 bg-green-50 text-green-700 rounded-lg hover:bg-green-600 hover:text-white"><i class="fa-solid fa-check"></i></button>` : ''}
+        ${t.status !== 'rejected' ? `<button data-tech="${esc(t.id)}" data-to="rejected" aria-label="Reject ${esc(t.name)}" class="w-9 h-9 bg-red-50 text-red-700 rounded-lg hover:bg-red-600 hover:text-white"><i class="fa-solid fa-xmark"></i></button>` : ''}
+      </div></li>`).join('')
+    : `<li class="p-8 text-center text-sm text-brand-dark/50">No ${techFilter} technicians.</li>`;
+}
+
+/* ===== ACTIONS (event delegation, no inline handlers) ===== */
+$('orderTabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { orderFilter = b.dataset.tab; renderOrders(); } });
+$('techTabs').addEventListener('click', e => { const b = e.target.closest('[data-tt]'); if (b) { techFilter = b.dataset.tt; renderTechs(); } });
+$('orderSearch').addEventListener('input', e => { query = e.target.value.trim(); renderOrders(); });
+$('refreshBtn').addEventListener('click', loadAll);
+
+$('orderList').addEventListener('change', async e => {
+  const sel = e.target.closest('[data-order]'); if (!sel) return;
+  const { error } = await sb.from(ORDERS_TABLE).update({ status: sel.value }).eq('id', sel.dataset.order);
+  if (error) { toast('Could not update order: ' + error.message); return loadOrders(); }
+  toast('Order marked ' + sel.value.replace('_', ' ')); loadOrders();
+});
+$('techList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-tech]'); if (!b) return;
+  const { error } = await sb.from('technicians').update({ status: b.dataset.to }).eq('id', b.dataset.tech);
+  if (error) return toast('Could not update technician: ' + error.message);
+  toast('Technician ' + b.dataset.to); loadTechs();
+});
+
+/* ===== HERO ===== */
+function renderHero() {
+  const h = new Date().getHours();
+  $('greet').textContent = (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + ', admin';
+  $('hOrders').textContent = orders.filter(ORDER_TABS.pending.test).length;
+  $('hTechs').textContent = techs.filter(t => t.status === 'pending').length;
+}
+
+/* ===== ORDER DRAWER (details + assign technician) ===== */
+const HIDE = ['id'];
+function openOrder(id) {
+  const o = orders.find(x => String(x.id) === String(id)); if (!o) return;
+  $('dTitle').textContent = pick(o, COL.name) || 'Order';
+  const techCol = COL.tech.find(k => k in o) || COL.tech[0];
+  const approved = techs.filter(t => t.status === 'approved');
+  const phone = String(pick(o, COL.phone)).replace(/[^\d+]/g, '');
+  const rows = Object.entries(o).filter(([k, v]) => v !== null && v !== '' && !HIDE.includes(k) && typeof v !== 'object')
+    .map(([k, v]) => `<div class="py-2 border-b border-brand-cream/70"><p class="text-xs text-brand-dark/50">${esc(k.replace(/_/g, ' '))}</p><p class="text-sm font-medium break-words">${esc(v)}</p></div>`).join('');
+  $('dBody').innerHTML = `
+    ${phone ? `<a href="tel:${esc(phone)}" class="flex items-center justify-center gap-2 w-full py-3 mb-4 rounded-xl bg-brand-olive text-white font-bold text-sm"><i class="fa-solid fa-phone"></i> Call customer</a>` : ''}
+    <label class="text-xs font-semibold text-brand-olive" for="dTech">Assigned technician</label>
+    <select id="dTech" data-oid="${esc(o.id)}" data-col="${esc(techCol)}" class="w-full mt-1 mb-4 px-4 py-3 rounded-xl bg-brand-cream/60 text-sm">
+      <option value="">Unassigned</option>
+      ${approved.map(t => `<option value="${esc(t.id)}" ${String(o[techCol]) === String(t.id) ? 'selected' : ''}>${esc(t.name)} (${esc(t.category)})</option>`).join('')}
+    </select>${rows}`;
+  $('drawer').classList.remove('hidden'); $('dClose').focus();
+}
+const closeDrawer = () => $('drawer').classList.add('hidden');
+$('orderList').addEventListener('click', e => { const r = e.target.closest('[data-open]'); if (r && !e.target.closest('select')) openOrder(r.dataset.open); });
+$('dClose').addEventListener('click', closeDrawer); $('drawerBg').addEventListener('click', closeDrawer);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+$('dBody').addEventListener('change', async e => {
+  const s = e.target.closest('#dTech'); if (!s) return;
+  const { error } = await sb.from(ORDERS_TABLE).update({ [s.dataset.col]: s.value || null }).eq('id', s.dataset.oid);
+  toast(error ? 'Could not assign: ' + error.message : 'Technician assigned'); loadOrders();
+});
+
+/* ===== CSV EXPORT (formula-injection safe) ===== */
+$('exportBtn').addEventListener('click', () => {
+  if (!orders.length) return toast('No orders to export');
+  const keys = [...new Set(orders.flatMap(o => Object.keys(o).filter(k => typeof o[k] !== 'object' || o[k] === null)))];
+  const cell = v => { let s = String(v ?? ''); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
+  const csv = [keys.join(','), ...orders.map(o => keys.map(k => cell(o[k])).join(','))].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = `fixzen-orders-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
+});
+
+/* ===== AUTH GATE: sign-in, admin check, idle logout ===== */
+const IDLE_MS = 15 * 60 * 1000;
+let started = false, idleT, fails = 0, lockUntil = 0;
+function showGate(msg) { $('gate').classList.remove('hidden'); $('gateErr').textContent = msg || ''; }
+function resetIdle() { clearTimeout(idleT); idleT = setTimeout(() => sb.auth.signOut(), IDLE_MS); }
+
+async function requireAdmin(session) {
+  if (!session) return showGate();
+  const { data, error } = await sb.rpc('is_admin');
+  if (error || data !== true) { await sb.auth.signOut(); return showGate('This account does not have admin access.'); }
+  $('gate').classList.add('hidden'); startApp();
+}
+$('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (Date.now() < lockUntil) return showGate('Too many attempts. Wait a minute and try again.');
+  $('loginBtn').disabled = true;
+  const { data, error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('password').value });
+  $('loginBtn').disabled = false; $('password').value = '';
+  if (error) { if (++fails >= 5) { lockUntil = Date.now() + 60000; fails = 0; } return showGate('Email or password is incorrect.'); }
+  fails = 0; requireAdmin(data.session);
+});
+$('googleBtn').addEventListener('click', async () => {
+  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
+  if (error) showGate('Google sign-in failed: ' + error.message);
+});
+$('logoutBtn').addEventListener('click', () => sb.auth.signOut());
+sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT') location.reload(); }); // clears data from memory
+
+/* ===== REALTIME (starts only after admin sign-in) ===== */
+function setLive(ok) {
+  $('liveDot').className = 'live-dot w-2 h-2 rounded-full ' + (ok ? 'bg-green-500' : 'bg-gray-300');
+  $('liveText').textContent = ok ? 'Live' : 'Offline';
+}
+function startApp() {
+  if (started) return; started = true;
+  sb.channel('admin-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: ORDERS_TABLE }, p => {
+      if (p.eventType === 'INSERT') { freshIds.add(p.new.id); toast('New order from ' + (pick(p.new, COL.name) || 'a customer')); }
+      loadOrders();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'technicians' }, p => {
+      if (p.eventType === 'INSERT') toast('New technician request: ' + (p.new.name || ''));
+      loadTechs();
+    })
+    .subscribe(s => setLive(s === 'SUBSCRIBED'));
+  setInterval(loadAll, 60000);
+  ['click', 'keydown', 'mousemove', 'touchstart'].forEach(ev => document.addEventListener(ev, resetIdle, { passive: true }));
+  resetIdle(); loadAll();
+}
+sb.auth.getSession().then(({ data }) => requireAdmin(data.session));
+
+</script>
 </body>
 </html>
