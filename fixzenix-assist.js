@@ -59,9 +59,6 @@ let selectedCustomer = null;
 let started = false;
 let currentJob = null;
 
-let fail = 0;
-let lockUntil = 0;
-
 const DONE = [
     'completed',
     'done'
@@ -1816,61 +1813,6 @@ async function startApp() {
 
 
 /* =========================================================
-   ADMIN CHECK
-   ========================================================= */
-
-async function requireAdmin(session) {
-
-    if (!session) {
-
-        if ($('gate')) {
-            $('gate')
-                .classList
-                .remove('hidden');
-        }
-
-        return;
-    }
-
-
-    const {
-        data,
-        error
-    } = await sb.rpc(
-        'is_admin'
-    );
-
-
-    if (
-        error ||
-        data !== true
-    ) {
-
-        await sb.auth.signOut();
-
-        if ($('gateErr')) {
-
-            $('gateErr').textContent =
-                'This account does not have admin access.';
-        }
-
-        return;
-    }
-
-
-    if ($('gate')) {
-
-        $('gate')
-            .classList
-            .add('hidden');
-    }
-
-
-    startApp();
-}
-
-
-/* =========================================================
    FORM EVENTS
    ========================================================= */
 
@@ -2042,121 +1984,6 @@ if ($('drawerBg')) {
 }
 
 
-if ($('logoutBtn')) {
-
-    $('logoutBtn').onclick =
-        () => sb.auth.signOut();
-}
-
-
-if ($('logoutBtn2')) {
-
-    $('logoutBtn2').onclick =
-        () => sb.auth.signOut();
-}
-
-
-/* =========================================================
-   LOGIN
-   ========================================================= */
-
-if ($('loginForm')) {
-
-    $('loginForm').onsubmit =
-        async e => {
-
-            e.preventDefault();
-
-
-            if (
-                Date.now() <
-                lockUntil
-            ) {
-
-                if ($('gateErr')) {
-
-                    $('gateErr').textContent =
-                        'Too many attempts. Wait one minute.';
-                }
-
-                return;
-            }
-
-
-            $('loginBtn').disabled =
-                true;
-
-
-            const {
-                data,
-                error
-            } = await sb.auth
-                .signInWithPassword({
-
-                    email:
-                        val('email'),
-
-                    password:
-                        $('password').value
-                });
-
-
-            $('loginBtn').disabled =
-                false;
-
-
-            $('password').value =
-                '';
-
-
-            if (error) {
-
-                if (++fail >= 5) {
-
-                    lockUntil =
-                        Date.now() +
-                        60000;
-
-                    fail = 0;
-                }
-
-                if ($('gateErr')) {
-
-                    $('gateErr').textContent =
-                        'Email or password is incorrect.';
-                }
-
-                return;
-            }
-
-
-            fail = 0;
-
-            requireAdmin(
-                data.session
-            );
-        };
-}
-
-
-/* =========================================================
-   AUTH STATE
-   ========================================================= */
-
-sb.auth.onAuthStateChange(
-    (ev) => {
-
-        if (
-            ev ===
-            'SIGNED_OUT'
-        ) {
-
-            location.reload();
-        }
-    }
-);
-
-
 /* =========================================================
    GREETING
    ========================================================= */
@@ -2173,7 +2000,7 @@ if ($('greet')) {
                 : h < 17
                     ? 'Good afternoon'
                     : 'Good evening'
-        ) + ', admin';
+        ) + ', team';
 }
 
 
@@ -2191,14 +2018,7 @@ if ($('preferredDate')) {
 
 
 /* =========================================================
-   INITIAL SESSION CHECK
+   BOOT
    ========================================================= */
 
-sb.auth
-    .getSession()
-    .then(
-        ({ data }) =>
-            requireAdmin(
-                data.session
-            )
-    );
+startApp();
