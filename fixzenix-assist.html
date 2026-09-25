@@ -18,10 +18,62 @@ tailwind.config={theme:{extend:{colors:{
 <style>
 body{font-family:"Plus Jakarta Sans",sans-serif}
 .card{box-shadow:0 10px 35px -18px rgba(77,76,75,.28)}
-input:focus,select:focus,textarea:focus{outline:2px solid #A07D54;outline-offset:1px}
 .step-active{background:#5D5646;color:#fff}
 .step-done{background:#A07D54;color:#fff}
 .slide{animation:slide .22s ease-out}@keyframes slide{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+/* Form field label */
+.label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#5D5646;margin-bottom:6px}
+
+/* Text inputs, selects, textareas */
+.field{
+  width:100%;
+  padding:.7rem .9rem;
+  border-radius:.85rem;
+  border:1.5px solid #E5E0D5;
+  background:#FBFAF7;
+  color:#4D4C4B;
+  font-size:.9rem;
+  transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.field::placeholder{color:#4D4C4B80}
+.field:focus{
+  outline:none;
+  border-color:#A07D54;
+  background:#fff;
+  box-shadow:0 0 0 3px rgba(160,125,84,.15);
+}
+select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%235D5646'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .8rem center;background-size:1.1em;padding-right:2.4rem}
+
+/* Buttons */
+.btn-primary{
+  display:inline-flex;align-items:center;justify-content:center;
+  background:#5D5646;color:#fff;font-weight:700;font-size:.9rem;
+  padding:.85rem 1.25rem;border-radius:.9rem;
+  transition:background .15s ease, transform .1s ease;
+  box-shadow:0 8px 20px -10px rgba(93,86,70,.6);
+}
+.btn-primary:hover{background:#4a4437}
+.btn-primary:active{transform:scale(.98)}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed}
+
+.btn-secondary{
+  display:inline-flex;align-items:center;justify-content:center;
+  background:#EEEAE2;color:#5D5646;font-weight:700;font-size:.9rem;
+  padding:.85rem 1.25rem;border-radius:.9rem;
+  transition:background .15s ease, transform .1s ease;
+}
+.btn-secondary:hover{background:#e2dccc}
+.btn-secondary:active{transform:scale(.98)}
+
+/* Small muted label used throughout drawer/review */
+.muted{font-size:11px;color:#4D4C4B80;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+
+/* Checkbox */
+input[type="checkbox"].accent-brand-olive{accent-color:#5D5646}
+
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#E5E0D5;border-radius:99px}
 </style>
 </head>
 <body class="bg-brand-cream text-brand-dark antialiased" x-data="{sidebarOpen:false}">
@@ -36,7 +88,6 @@ input:focus,select:focus,textarea:focus{outline:2px solid #A07D54;outline-offset
   <div class="flex items-center gap-3">
     <span id="liveBadge" class="hidden sm:flex items-center gap-2 text-xs font-semibold"><span id="liveDot" class="w-2 h-2 rounded-full bg-gray-300"></span><span id="liveText">Connecting</span></span>
     <button id="refreshBtn" class="w-9 h-9 rounded-full hover:bg-brand-cream" title="Refresh"><i class="fa-solid fa-rotate text-brand-olive"></i></button>
-    <button id="logoutBtn" class="text-xs font-bold text-red-600 px-3 py-2 rounded-lg hover:bg-red-50">Log out</button>
   </div>
 </header>
 
@@ -154,15 +205,6 @@ input:focus,select:focus,textarea:focus{outline:2px solid #A07D54;outline-offset
  </div>
 </div>
 
-<div id="gate" class="fixed inset-0 z-[200] bg-brand-cream flex items-center justify-center p-4">
- <form id="loginForm" class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-8">
-  <h1 class="text-2xl font-extrabold text-brand-olive">FIX <span class="text-brand-gold">ZENIX</span></h1><p class="text-sm text-brand-dark/60 mt-1 mb-6">Admin access required.</p>
-  <label class="label">Email</label><input id="email" type="email" required class="field mb-4">
-  <label class="label">Password</label><input id="password" type="password" required class="field mb-2">
-  <p id="gateErr" class="text-xs text-red-600 min-h-5"></p><button id="loginBtn" class="btn-primary w-full">Sign in</button>
- </form>
-</div>
-
 <div id="toast" class="fixed top-20 right-4 z-[250] hidden bg-brand-olive text-white text-sm font-bold px-4 py-3 rounded-xl shadow-xl max-w-sm"></div>
 
 <nav class="fixed bottom-5 left-1/2 -translate-x-1/2 w-[92%] max-w-lg z-50">
@@ -184,7 +226,6 @@ input:focus,select:focus,textarea:focus{outline:2px solid #A07D54;outline-offset
    <a href="admin-jobs.html" class="block"><i class="fa-solid fa-clipboard-list w-6"></i> Booking logs</a>
    <a href="admin-users.html" class="block"><i class="fa-solid fa-users w-6"></i> Customers</a>
    <a href="admin-payouts.html" class="block"><i class="fa-solid fa-wallet w-6"></i> Partner payouts</a>
-   <button id="logoutBtn2" class="w-full mt-6 py-3 rounded-xl bg-red-50 text-red-600 font-bold">Log out</button>
   </nav>
  </aside>
 </div>
