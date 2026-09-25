@@ -845,46 +845,57 @@ async function createJob(e) {
 
     const payload = {
 
-        customer_name:
-            val('customerName'),
+    customer_name:
+        val('customerName'),
 
-        phone:
-            val('phone'),
+    phone:
+        val('phone'),
 
-        category:
-            val('category'),
+    category:
+        val('category'),
 
-        issue:
-            val('issue'),
+    /*
+       Your existing jobs table requires device.
+       Assist does not have a separate device field,
+       so use the selected service/category as the
+       device/service item.
+    */
+    device:
+        val('device') ||
+        val('category') ||
+        'General Service',
 
-        location:
-            val('location'),
+    issue:
+        val('issue'),
 
-        status:
-            tech
-                ? 'assigned'
-                : 'pending',
+    location:
+        val('location'),
 
-        urgent:
-            $('urgent').value === 'true',
+    status:
+        tech
+            ? 'assigned'
+            : 'pending',
 
-        booking_source:
-            val('bookingChannel'),
+    urgent:
+        $('urgent').value === 'true',
 
-        assist_notes:
-            val('assistNotes'),
+    booking_source:
+        val('bookingChannel'),
 
-        preferred_date:
-            val('preferredDate') ||
-            null,
+    assist_notes:
+        val('assistNotes'),
 
-        preferred_time:
-            val('preferredTime') ||
-            null,
+    preferred_date:
+        val('preferredDate') ||
+        null,
 
-        payment_status:
-            'pending'
-    };
+    preferred_time:
+        val('preferredTime') ||
+        null,
+
+    payment_status:
+        'pending'
+};
 
 
     /*
