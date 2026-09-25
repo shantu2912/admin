@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>FixZenix Assist — Assisted Booking</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config={theme:{extend:{colors:{
+'brand-olive':'#5D5646','brand-gold':'#A07D54','brand-cream':'#EEEAE2','brand-dark':'#4D4C4B',
+'brand-green':'#10B981','brand-red':'#EF4444','brand-warn':'#F59E0B'
+},fontFamily:{sans:['"Plus Jakarta Sans"','sans-serif']}}}}
+</script>
+<style>
+body{font-family:"Plus Jakarta Sans",sans-serif}
+.card{box-shadow:0 10px 35px -18px rgba(77,76,75,.28)}
+input:focus,select:focus,textarea:focus{outline:2px solid #A07D54;outline-offset:1px}
+.step-active{background:#5D5646;color:#fff}
+.step-done{background:#A07D54;color:#fff}
+.slide{animation:slide .22s ease-out}@keyframes slide{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body class="bg-brand-cream text-brand-dark antialiased" x-data="{sidebarOpen:false}">
+<header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-brand-olive/10 px-4 sm:px-6 py-3 flex items-center justify-between">
+  <div class="flex items-center gap-4">
+    <button @click="sidebarOpen=true" class="text-brand-olive text-xl" aria-label="Open menu"><i class="fa-solid fa-bars-staggered"></i></button>
+    <div>
+      <div class="font-extrabold tracking-tight text-brand-olive text-lg">FIX <span class="text-brand-gold">ZENIX</span></div>
+      <div class="text-[10px] uppercase tracking-[.2em] text-brand-dark/45">Assist Operations</div>
+    </div>
+  </div>
+  <div class="flex items-center gap-3">
+    <span id="liveBadge" class="hidden sm:flex items-center gap-2 text-xs font-semibold"><span id="liveDot" class="w-2 h-2 rounded-full bg-gray-300"></span><span id="liveText">Connecting</span></span>
+    <button id="refreshBtn" class="w-9 h-9 rounded-full hover:bg-brand-cream" title="Refresh"><i class="fa-solid fa-rotate text-brand-olive"></i></button>
+    <button id="logoutBtn" class="text-xs font-bold text-red-600 px-3 py-2 rounded-lg hover:bg-red-50">Log out</button>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-28">
+<section class="bg-brand-olive text-white rounded-[2rem] p-6 sm:p-8 mb-6 card flex flex-col lg:flex-row justify-between gap-6">
+  <div>
+    <p id="greet" class="text-white/60 text-sm"></p>
+    <h1 class="text-3xl sm:text-4xl font-extrabold mt-1">FixZenix Assist</h1>
+    <p class="text-white/70 mt-2 max-w-2xl text-sm leading-6">
+      Create a booking for customers who call FixZenix, dispatch a technician, track payment and keep the complete job inside the same system.
+    </p>
+  </div>
+  <div class="grid grid-cols-3 gap-2 min-w-[290px]">
+    <div class="bg-white/10 rounded-2xl p-4"><div id="kToday" class="text-2xl font-extrabold">0</div><div class="text-[11px] text-white/60">Assist today</div></div>
+    <div class="bg-white/10 rounded-2xl p-4"><div id="kActive" class="text-2xl font-extrabold">0</div><div class="text-[11px] text-white/60">Active</div></div>
+    <div class="bg-white/10 rounded-2xl p-4"><div id="kCollected" class="text-2xl font-extrabold">₹0</div><div class="text-[11px] text-white/60">Collected</div></div>
+  </div>
+</section>
+
+<div class="grid xl:grid-cols-[1.05fr_.95fr] gap-6">
+<section class="bg-white rounded-[2rem] p-5 sm:p-7 card">
+  <div class="flex items-center justify-between gap-4 mb-6">
+    <div><p class="text-xs font-bold uppercase tracking-widest text-brand-gold">New assisted booking</p><h2 class="text-xl font-extrabold text-brand-olive mt-1">Create job for caller</h2></div>
+    <span class="px-3 py-1.5 rounded-full bg-brand-gold/10 text-brand-gold text-xs font-bold"><i class="fa-solid fa-headset mr-1"></i> CALL / WHATSAPP</span>
+  </div>
+
+  <div class="flex items-center gap-2 mb-7 text-[11px] font-bold">
+    <div id="step1" class="step-active w-8 h-8 rounded-full flex items-center justify-center">1</div><div class="h-px bg-brand-cream flex-1"></div>
+    <div id="step2" class="w-8 h-8 rounded-full bg-brand-cream flex items-center justify-center">2</div><div class="h-px bg-brand-cream flex-1"></div>
+    <div id="step3" class="w-8 h-8 rounded-full bg-brand-cream flex items-center justify-center">3</div>
+  </div>
+
+  <form id="assistForm" class="space-y-5">
+    <div id="panel1" class="slide space-y-5">
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div><label class="label">Customer name *</label><input id="customerName" required class="field" placeholder="Full name"></div>
+        <div><label class="label">Phone *</label><input id="phone" required inputmode="tel" class="field" placeholder="10-digit mobile"></div>
+      </div>
+      <div>
+        <label class="label">Existing customer?</label>
+        <div class="flex gap-2">
+          <button type="button" id="findCustomerBtn" class="btn-secondary"><i class="fa-solid fa-magnifying-glass mr-2"></i>Find by phone</button>
+          <span id="customerHint" class="text-xs self-center text-brand-dark/50"></span>
+        </div>
+      </div>
+      <div><label class="label">Service *</label>
+        <select id="category" required class="field"><option value="">Select service</option>
+          <option>Electrician</option><option>Plumber</option><option>AC Repair</option><option>Carpentry</option><option>Welder</option><option>Grass Cutting</option><option>Pest Control</option><option>Cleaning / Deep Cleaning</option><option>Washing Machine</option><option>TV / LED</option><option>Refrigerator</option><option>Small Home Appliance</option><option>Other</option>
+        </select>
+      </div>
+      <div><label class="label">Problem / work required *</label><textarea id="issue" required rows="4" class="field" placeholder="Example: AC is not cooling. Customer says indoor unit is running but no cooling."></textarea></div>
+      <div><label class="label">Service location *</label><textarea id="location" required rows="3" class="field" placeholder="House / flat, area, landmark, Amravati"></textarea></div>
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div><label class="label">Booking channel *</label><select id="bookingChannel" class="field"><option value="assisted_call">Phone call</option><option value="whatsapp">WhatsApp</option><option value="admin">Admin / walk-in</option></select></div>
+        <div><label class="label">Priority</label><select id="urgent" class="field"><option value="false">Normal</option><option value="true">Urgent</option></select></div>
+      </div>
+      <button type="button" id="toStep2" class="btn-primary w-full">Continue <i class="fa-solid fa-arrow-right ml-2"></i></button>
+    </div>
+
+    <div id="panel2" class="hidden slide space-y-5">
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div><label class="label">Preferred date</label><input id="preferredDate" type="date" class="field"></div>
+        <div><label class="label">Preferred time</label><select id="preferredTime" class="field"><option value="">Any available time</option><option>9:00 AM - 12:00 PM</option><option>12:00 PM - 3:00 PM</option><option>3:00 PM - 6:00 PM</option><option>6:00 PM - 9:00 PM</option></select></div>
+      </div>
+      <div><label class="label">Technician</label><select id="technician" class="field"><option value="">Dispatch through technician availability</option></select><p class="text-[11px] text-brand-dark/45 mt-1">If a technician is selected, the job is assigned directly. Otherwise it stays pending for normal dispatch.</p></div>
+      <div><label class="label">Call / operator notes</label><textarea id="assistNotes" rows="4" class="field" placeholder="Customer preferences, gate instructions, landmark, etc."></textarea></div>
+      <div class="rounded-2xl bg-brand-cream/60 p-4">
+        <label class="flex items-center gap-3 cursor-pointer"><input id="customerConsent" type="checkbox" class="w-5 h-5 accent-brand-olive"><span class="text-sm font-semibold">Customer confirmed the service request and location.</span></label>
+      </div>
+      <div class="grid grid-cols-2 gap-3"><button type="button" id="back1" class="btn-secondary">Back</button><button type="button" id="toStep3" class="btn-primary">Continue</button></div>
+    </div>
+
+    <div id="panel3" class="hidden slide space-y-5">
+      <div class="rounded-2xl bg-brand-cream/50 p-5">
+        <div class="flex justify-between gap-4"><div><p class="text-xs text-brand-dark/50">Customer</p><p id="reviewCustomer" class="font-extrabold text-brand-olive"></p><p id="reviewPhone" class="text-xs mt-1"></p></div><i class="fa-solid fa-user-check text-brand-gold text-xl"></i></div>
+        <hr class="my-4 border-brand-cream">
+        <div class="grid sm:grid-cols-2 gap-4 text-sm"><div><p class="muted">Service</p><p id="reviewService" class="font-bold"></p></div><div><p class="muted">Priority</p><p id="reviewPriority" class="font-bold"></p></div><div><p class="muted">Preferred visit</p><p id="reviewVisit" class="font-bold"></p></div><div><p class="muted">Technician</p><p id="reviewTech" class="font-bold"></p></div></div>
+        <div class="mt-4"><p class="muted">Location</p><p id="reviewLocation" class="font-semibold text-sm"></p></div>
+        <div class="mt-4"><p class="muted">Problem</p><p id="reviewIssue" class="font-semibold text-sm"></p></div>
+      </div>
+      <div class="border border-brand-gold/30 bg-brand-gold/5 rounded-2xl p-4 text-sm">
+        <i class="fa-solid fa-circle-info text-brand-gold mr-1"></i>
+        <b>No price is collected here unless the customer has already received a final bill.</b>
+        The technician can inspect and quote through the existing job workflow.
+      </div>
+      <div class="grid grid-cols-2 gap-3"><button type="button" id="back2" class="btn-secondary">Back</button><button type="submit" id="createBtn" class="btn-primary"><i class="fa-solid fa-plus mr-2"></i>Create & dispatch</button></div>
+    </div>
+  </form>
+</section>
+
+<section class="bg-white rounded-[2rem] p-5 sm:p-7 card">
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+    <div><p class="text-xs font-bold uppercase tracking-widest text-brand-gold">Operations queue</p><h2 class="text-xl font-extrabold text-brand-olive mt-1">Assisted jobs</h2></div>
+    <div class="flex gap-2"><select id="queueFilter" class="px-3 py-2 rounded-xl bg-brand-cream/60 text-xs font-bold"><option value="all">All</option><option value="pending">Pending</option><option value="active">Active</option><option value="completed">Completed</option></select><input id="queueSearch" class="px-3 py-2 rounded-xl bg-brand-cream/60 text-xs w-36 sm:w-48" placeholder="Search"></div>
+  </div>
+  <div id="queue" class="space-y-3 max-h-[760px] overflow-y-auto pr-1"></div>
+  <div id="queueEmpty" class="hidden py-12 text-center text-sm text-brand-dark/50">No assisted bookings yet.</div>
+</section>
+</div>
+</main>
+
+<div id="jobDrawer" class="fixed inset-0 z-[100] hidden">
+  <div id="drawerBg" class="absolute inset-0 bg-brand-olive/50 backdrop-blur-sm"></div>
+  <aside class="absolute right-0 top-0 h-full w-full max-w-lg bg-white shadow-2xl p-6 overflow-y-auto">
+    <div class="flex justify-between items-start mb-6"><div><p class="text-xs text-brand-dark/50">Assist job</p><h3 id="drawerTitle" class="text-xl font-extrabold text-brand-olive"></h3></div><button id="drawerClose" class="w-9 h-9 rounded-full hover:bg-brand-cream"><i class="fa-solid fa-xmark"></i></button></div>
+    <div id="drawerBody"></div>
+  </aside>
+</div>
+
+<div id="customerModal" class="fixed inset-0 z-[120] hidden">
+ <div class="absolute inset-0 bg-brand-olive/50 backdrop-blur-sm" id="customerBg"></div>
+ <div class="relative max-w-lg mx-auto mt-24 bg-white rounded-[2rem] p-6 shadow-2xl">
+   <div class="flex justify-between mb-4"><h3 class="font-extrabold text-brand-olive">Customer search</h3><button id="customerClose"><i class="fa-solid fa-xmark"></i></button></div>
+   <div id="customerResults" class="space-y-2 text-sm"></div>
+ </div>
+</div>
+
+<div id="gate" class="fixed inset-0 z-[200] bg-brand-cream flex items-center justify-center p-4">
+ <form id="loginForm" class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-8">
+  <h1 class="text-2xl font-extrabold text-brand-olive">FIX <span class="text-brand-gold">ZENIX</span></h1><p class="text-sm text-brand-dark/60 mt-1 mb-6">Admin access required.</p>
+  <label class="label">Email</label><input id="email" type="email" required class="field mb-4">
+  <label class="label">Password</label><input id="password" type="password" required class="field mb-2">
+  <p id="gateErr" class="text-xs text-red-600 min-h-5"></p><button id="loginBtn" class="btn-primary w-full">Sign in</button>
+ </form>
+</div>
+
+<div id="toast" class="fixed top-20 right-4 z-[250] hidden bg-brand-olive text-white text-sm font-bold px-4 py-3 rounded-xl shadow-xl max-w-sm"></div>
+
+<nav class="fixed bottom-5 left-1/2 -translate-x-1/2 w-[92%] max-w-lg z-50">
+ <div class="bg-brand-olive/95 backdrop-blur-xl rounded-full p-2 flex justify-between items-center shadow-2xl">
+  <a href="admin.html" class="w-12 h-12 flex items-center justify-center text-white/70 hover:text-brand-gold" title="Command Center"><i class="fa-solid fa-gauge"></i></a>
+  <a href="fixzenix-assist.html" class="bg-brand-gold text-white px-6 py-3 rounded-full flex items-center gap-2 shadow-lg"><i class="fa-solid fa-headset"></i><span class="text-xs font-bold">Assist</span></a>
+  <a href="admin-jobs.html" class="w-12 h-12 flex items-center justify-center text-white/70 hover:text-brand-gold" title="Jobs"><i class="fa-solid fa-clipboard-list"></i></a>
+  <a href="index.html" class="w-12 h-12 flex items-center justify-center text-white/70 hover:text-brand-gold" title="Public site"><i class="fa-solid fa-eye"></i></a>
+ </div>
+</nav>
+
+<div x-show="sidebarOpen" class="fixed inset-0 z-[180]" style="display:none">
+ <div class="absolute inset-0 bg-brand-olive/60" @click="sidebarOpen=false"></div>
+ <aside class="absolute left-0 top-0 h-full w-72 bg-white p-8 shadow-2xl">
+  <h2 class="font-extrabold text-2xl text-brand-olive mb-8">Admin menu</h2>
+  <nav class="space-y-5 text-sm font-bold text-brand-olive/70">
+   <a href="admin.html" class="block"><i class="fa-solid fa-gauge w-6"></i> Command Center</a>
+   <a href="fixzenix-assist.html" class="block text-brand-gold"><i class="fa-solid fa-headset w-6"></i> FixZenix Assist</a>
+   <a href="admin-jobs.html" class="block"><i class="fa-solid fa-clipboard-list w-6"></i> Booking logs</a>
+   <a href="admin-users.html" class="block"><i class="fa-solid fa-users w-6"></i> Customers</a>
+   <a href="admin-payouts.html" class="block"><i class="fa-solid fa-wallet w-6"></i> Partner payouts</a>
+   <button id="logoutBtn2" class="w-full mt-6 py-3 rounded-xl bg-red-50 text-red-600 font-bold">Log out</button>
+  </nav>
+ </aside>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="fixzenix-assist.js"></script>
+</body></html>
