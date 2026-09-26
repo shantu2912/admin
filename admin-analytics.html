@@ -120,6 +120,40 @@ body{
   height: 300px;
   width: 100%;
 }
+
+/* Live pulse dot for realtime indicator */
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #22c55e;
+  display: inline-block;
+  animation: pulse 1.6s infinite;
+}
+
+/* P&L waterfall row */
+.pl-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px dashed rgba(93,86,70,0.15);
+}
+.pl-row:last-child { border-bottom: none; }
+.pl-row.subtract .pl-value { color: #b91c1c; }
+.pl-row.result .pl-value { color: #A07D54; font-weight: 800; }
+.pl-row.final .pl-value { color: #166534; font-weight: 800; }
+
+input.pl-input {
+  width: 140px;
+  text-align: right;
+  border: 1px solid rgba(93,86,70,0.25);
+  border-radius: 10px;
+  padding: 6px 10px;
+  background: #fff;
+  font-weight: 700;
+  color: #5D5646;
+}
 </style>
 </head>
 
@@ -130,8 +164,8 @@ body{
   <div>
     <h1 class="text-4xl font-extrabold brand-title flex items-center gap-3">
       FIX <span class="text-[#A07D54]">ZEN</span> 
-      <span class="text-sm font-normal bg-white/50 px-4 py-2 rounded-full text-[#5D5646]">
-        <i class="fa-regular fa-calendar mr-2"></i>Real-time
+      <span class="text-sm font-normal bg-white/50 px-4 py-2 rounded-full text-[#5D5646] flex items-center gap-2">
+        <span class="live-dot"></span> Live
       </span>
     </h1>
     <p class="text-sm text-black/60 mt-2 flex items-center gap-2">
@@ -287,6 +321,93 @@ body{
   </div>
 </div>
 
+<!-- ============== PROFIT & LOSS ============== -->
+<div class="glass-card p-8 mb-8">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3">
+    <h2 class="section-title flex items-center gap-2">
+      <i class="fa-solid fa-scale-balanced text-[#A07D54] text-xl"></i>
+      Profit &amp; Loss (Live)
+    </h2>
+    <button id="togglePLEdit" onclick="togglePLEditor()" class="text-xs font-bold bg-[#5D5646]/10 text-[#5D5646] px-4 py-2 rounded-full hover:bg-[#5D5646]/20 transition-all flex items-center gap-2">
+      <i class="fa-solid fa-pen"></i> Edit Opex, D&amp;A, Interest &amp; Tax
+    </button>
+  </div>
+  <p class="text-xs text-black/40 mb-4">
+    Revenue and Gross Profit are computed live from completed jobs. Operating Expenses, Depreciation &amp; Amortization, Interest and Tax are entered manually below (saved to Supabase, synced across every admin session in real time) since they aren't tracked in your jobs data.
+  </p>
+
+  <!-- Editable inputs (hidden by default) -->
+  <div id="plEditor" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 bg-white/60 p-5 rounded-2xl">
+    <div>
+      <label class="kpi-label block mb-2">Operating Expenses (₹/mo)</label>
+      <input type="number" id="inputOpex" class="pl-input w-full" value="0" step="1">
+    </div>
+    <div>
+      <label class="kpi-label block mb-2">Depreciation &amp; Amortization (₹/mo)</label>
+      <input type="number" id="inputDA" class="pl-input w-full" value="0" step="1">
+    </div>
+    <div>
+      <label class="kpi-label block mb-2">Interest (₹/mo)</label>
+      <input type="number" id="inputInterest" class="pl-input w-full" value="0" step="1">
+    </div>
+    <div>
+      <label class="kpi-label block mb-2">Tax (₹/mo)</label>
+      <input type="number" id="inputTax" class="pl-input w-full" value="0" step="1">
+    </div>
+    <div class="lg:col-span-4 flex justify-end">
+      <button onclick="savePLInputs()" class="bg-[#A07D54] text-white text-sm font-bold px-6 py-2.5 rounded-xl hover:bg-[#8c6a45] transition-all">
+        Save
+      </button>
+      <span id="plSaveStatus" class="text-xs text-black/40 ml-3 self-center"></span>
+    </div>
+  </div>
+
+  <!-- Waterfall -->
+  <div>
+    <div class="pl-row">
+      <span class="text-sm font-bold text-[#5D5646]">Revenue</span>
+      <span class="pl-value text-lg font-extrabold" id="plRevenue">₹0</span>
+    </div>
+    <div class="pl-row">
+      <span class="text-sm font-bold text-[#5D5646]">Gross Revenue</span>
+      <span class="pl-value text-lg font-extrabold" id="plGrossRevenue">₹0</span>
+    </div>
+    <div class="pl-row result">
+      <span class="text-sm font-bold text-[#5D5646]">Gross Profit <span class="text-xs text-black/40 font-normal">(15.7% of revenue)</span></span>
+      <span class="pl-value text-lg" id="plGrossProfit">₹0</span>
+    </div>
+    <div class="pl-row subtract">
+      <span class="text-sm font-bold text-[#5D5646]">− Operating Expenses</span>
+      <span class="pl-value text-lg font-extrabold" id="plOpex">₹0</span>
+    </div>
+    <div class="pl-row result">
+      <span class="text-sm font-bold text-[#5D5646]">EBITDA</span>
+      <span class="pl-value text-lg" id="plEbitda">₹0</span>
+    </div>
+    <div class="pl-row subtract">
+      <span class="text-sm font-bold text-[#5D5646]">− Depreciation &amp; Amortization</span>
+      <span class="pl-value text-lg font-extrabold" id="plDA">₹0</span>
+    </div>
+    <div class="pl-row result">
+      <span class="text-sm font-bold text-[#5D5646]">EBIT</span>
+      <span class="pl-value text-lg" id="plEbit">₹0</span>
+    </div>
+    <div class="pl-row subtract">
+      <span class="text-sm font-bold text-[#5D5646]">− Interest</span>
+      <span class="pl-value text-lg font-extrabold" id="plInterest">₹0</span>
+    </div>
+    <div class="pl-row subtract">
+      <span class="text-sm font-bold text-[#5D5646]">− Tax</span>
+      <span class="pl-value text-lg font-extrabold" id="plTax">₹0</span>
+    </div>
+    <div class="pl-row final">
+      <span class="text-base font-extrabold text-[#5D5646]">Net Profit</span>
+      <span class="pl-value text-2xl" id="plNetProfit">₹0</span>
+    </div>
+  </div>
+</div>
+<!-- ============ END PROFIT & LOSS ============ -->
+
 <!-- CHARTS -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
@@ -340,9 +461,18 @@ const sb = supabase.createClient(
 let statusChart = null;
 let hourChart = null;
 
+// Running totals kept so the P&L can be recomputed instantly whenever
+// finance inputs change, without re-querying jobs.
+let lastRevenue = 0;
+let lastGrossProfit = 0;
+
+// Finance inputs (Opex / D&A / Interest / Tax) — pulled from Supabase
+const FINANCE_ROW_ID = 1;
+let financeInputs = { operating_expenses: 0, depreciation_amortization: 0, interest: 0, tax: 0 };
+
 // Format currency
 function formatCurrency(amount) {
-  return '₹' + amount.toLocaleString('en-IN');
+  return '₹' + Math.round(amount).toLocaleString('en-IN');
 }
 
 // Format date for display
@@ -374,6 +504,104 @@ function calculateTrend(current, previous) {
   const change = ((current - previous) / previous) * 100;
   return (change > 0 ? '+' : '') + change.toFixed(1) + '%';
 }
+
+function togglePLEditor() {
+  document.getElementById('plEditor').classList.toggle('hidden');
+}
+
+// ---------- Finance inputs (Opex / D&A / Interest / Tax) ----------
+
+async function loadFinanceInputs() {
+  const { data, error } = await sb
+    .from("finance_inputs")
+    .select("*")
+    .eq("id", FINANCE_ROW_ID)
+    .maybeSingle();
+
+  if (error) {
+    // Table probably doesn't exist yet — see the SQL setup note.
+    console.warn("finance_inputs not available yet:", error.message);
+    return;
+  }
+
+  if (data) {
+    financeInputs = {
+      operating_expenses: Number(data.operating_expenses || 0),
+      depreciation_amortization: Number(data.depreciation_amortization || 0),
+      interest: Number(data.interest || 0),
+      tax: Number(data.tax || 0)
+    };
+  } else {
+    // No row yet — create the default one.
+    await sb.from("finance_inputs").upsert({
+      id: FINANCE_ROW_ID,
+      operating_expenses: 0,
+      depreciation_amortization: 0,
+      interest: 0,
+      tax: 0
+    });
+  }
+
+  document.getElementById('inputOpex').value = financeInputs.operating_expenses;
+  document.getElementById('inputDA').value = financeInputs.depreciation_amortization;
+  document.getElementById('inputInterest').value = financeInputs.interest;
+  document.getElementById('inputTax').value = financeInputs.tax;
+}
+
+async function savePLInputs() {
+  const statusEl = document.getElementById('plSaveStatus');
+  financeInputs = {
+    operating_expenses: Number(document.getElementById('inputOpex').value || 0),
+    depreciation_amortization: Number(document.getElementById('inputDA').value || 0),
+    interest: Number(document.getElementById('inputInterest').value || 0),
+    tax: Number(document.getElementById('inputTax').value || 0)
+  };
+
+  const { error } = await sb.from("finance_inputs").upsert({
+    id: FINANCE_ROW_ID,
+    ...financeInputs,
+    updated_at: new Date().toISOString()
+  });
+
+  if (error) {
+    statusEl.textContent = "Couldn't save — check finance_inputs table exists.";
+    console.error(error);
+    return;
+  }
+
+  statusEl.textContent = "Saved ✓";
+  setTimeout(() => statusEl.textContent = "", 2000);
+  renderPL();
+}
+
+// ---------- P&L waterfall ----------
+
+function renderPL() {
+  const revenue = lastRevenue;
+  const grossRevenue = revenue; // no refunds/discounts tracked separately yet
+  const grossProfit = lastGrossProfit; // 15.7% platform cut
+  const opex = financeInputs.operating_expenses;
+  const da = financeInputs.depreciation_amortization;
+  const interest = financeInputs.interest;
+  const tax = financeInputs.tax;
+
+  const ebitda = grossProfit - opex;
+  const ebit = ebitda - da;
+  const netProfit = ebit - interest - tax;
+
+  document.getElementById('plRevenue').textContent = formatCurrency(revenue);
+  document.getElementById('plGrossRevenue').textContent = formatCurrency(grossRevenue);
+  document.getElementById('plGrossProfit').textContent = formatCurrency(grossProfit);
+  document.getElementById('plOpex').textContent = formatCurrency(opex);
+  document.getElementById('plEbitda').textContent = formatCurrency(ebitda);
+  document.getElementById('plDA').textContent = formatCurrency(da);
+  document.getElementById('plEbit').textContent = formatCurrency(ebit);
+  document.getElementById('plInterest').textContent = formatCurrency(interest);
+  document.getElementById('plTax').textContent = formatCurrency(tax);
+  document.getElementById('plNetProfit').textContent = formatCurrency(netProfit);
+}
+
+// ---------- Main analytics load ----------
 
 async function loadAnalytics() {
   showLoading();
@@ -540,6 +768,11 @@ async function loadAnalytics() {
   const peakHour = hourMap.indexOf(Math.max(...hourMap));
   document.getElementById("peakHourBadge").textContent = hourMap[peakHour] + ' bookings at ' + peakHour + ':00';
 
+  // Feed the P&L waterfall and render it
+  lastRevenue = totalRevenue;
+  lastGrossProfit = totalProfit;
+  renderPL();
+
   // Chart theme (brand consistent)
   Chart.defaults.color = "#5D5646";
   Chart.defaults.font.family = "Plus Jakarta Sans";
@@ -683,11 +916,29 @@ async function loadAnalytics() {
   hideLoading();
 }
 
-// Auto-refresh every 30 seconds
+// ---------- Realtime: recalculate the instant any job or finance input changes ----------
+
+sb
+  .channel('jobs-realtime-analytics')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, () => {
+    loadAnalytics();
+  })
+  .subscribe();
+
+sb
+  .channel('finance-inputs-realtime-analytics')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'finance_inputs' }, () => {
+    loadFinanceInputs().then(renderPL);
+  })
+  .subscribe();
+
+// Safety-net poll every 30s in case a realtime event is missed (e.g. brief disconnect)
 setInterval(loadAnalytics, 30000);
 
 // Initial load
-loadAnalytics();
+loadFinanceInputs().then(() => {
+  loadAnalytics();
+});
 </script>
 
 </body>
