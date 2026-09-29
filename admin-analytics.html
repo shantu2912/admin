@@ -441,6 +441,34 @@ input.pl-input {
 
 </div>
 
+<!-- Manual / Assisted bookings -->
+<div class="mt-8 glass-card p-6 sm:p-8">
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+    <h2 class="section-title flex items-center gap-2">
+      <i class="fa-solid fa-headset text-[#A07D54] text-xl"></i>
+      Manual Bookings (Admin / Call / WhatsApp)
+    </h2>
+    <span class="text-xs bg-white px-3 py-1 rounded-full text-[#5D5646] font-bold" id="manualBadge">0 bookings</span>
+  </div>
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white/60 rounded-2xl p-4"><p class="text-xs font-bold text-black/40 uppercase">Bookings</p><p id="mCount" class="text-2xl font-extrabold text-[#5D5646]">0</p></div>
+    <div class="bg-white/60 rounded-2xl p-4"><p class="text-xs font-bold text-black/40 uppercase">Billed value</p><p id="mValue" class="text-2xl font-extrabold text-[#5D5646]">₹0</p></div>
+    <div class="bg-white/60 rounded-2xl p-4"><p class="text-xs font-bold text-black/40 uppercase">Collected</p><p id="mCollected" class="text-2xl font-extrabold text-emerald-600">₹0</p></div>
+    <div class="bg-white/60 rounded-2xl p-4"><p class="text-xs font-bold text-black/40 uppercase">Pending payment</p><p id="mPending" class="text-2xl font-extrabold text-amber-600">₹0</p></div>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-[11px] uppercase tracking-wide text-black/40 border-b border-black/10">
+          <th class="pb-2 pr-3">Customer</th><th class="pb-2 pr-3">Service</th><th class="pb-2 pr-3">Technician</th>
+          <th class="pb-2 pr-3">Source</th><th class="pb-2 pr-3">Status</th><th class="pb-2 pr-3">Payment</th><th class="pb-2 text-right">Price</th>
+        </tr>
+      </thead>
+      <tbody id="manualRows"><tr><td colspan="7" class="py-6 text-center text-black/40">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
 <!-- Recent Activity Footer -->
 <div class="mt-8 glass-card p-6">
   <div class="flex items-center gap-3 mb-4">
@@ -601,6 +629,94 @@ function renderPL() {
   document.getElementById('plNetProfit').textContent = formatCurrency(netProfit);
 }
 
+
+// ---------- Manual (assisted) bookings support ----------
+
+const MANUAL_SOURCES = ['assisted_call', 'whatsapp', 'admin'];
+const FZ_TAG = /\n?\[\[FZ:(.*?)\]\]/s;
+
+// Manual technician + bill items saved by the Assist page:
+// jobs.bill_data, or a hidden tag inside assist_notes.
+function readBillData(job) {
+  let d = job.bill_data;
+  if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { d = null; } }
+  if (!d && job.assist_notes) {
+    const m = String(job.assist_notes).match(FZ_TAG);
+    if (m) { try { d = JSON.parse(m[1]); } catch (e) { d = null; } }
+  }
+  return d;
+}
+
+function billTotalOf(d) {
+  if (!d || !d.items) return 0;
+  const sub = d.items.reduce((a, i) => a + (Number(i.price) || 0), 0);
+  return Math.max(0, sub - (Number(d.discount) || 0)) + (Number(d.platformFee) || 0);
+}
+
+// One price for every kind of job (normal + manual)
+function getJobPrice(job) {
+  return Number(
+    job.discounted_price || job.original_price || job.price ||
+    job.final_amount || job.customer_price || job.payable_amount || job.amount || 0
+  ) || billTotalOf(readBillData(job));
+}
+
+function isManualJob(job) {
+  return MANUAL_SOURCES.includes(String(job.booking_source || ''));
+}
+
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderManualBookings(jobs, technicians) {
+  const manual = jobs
+    .filter(isManualJob)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  let value = 0, collected = 0, pending = 0;
+
+  manual.forEach(j => {
+    if (String(j.status).toLowerCase() === 'cancelled') return;
+    const price = getJobPrice(j);
+    const pay = String(j.payment_status || 'pending').toLowerCase();
+    value += price;
+    if (['paid', 'cash', 'upi'].includes(pay)) collected += price;
+    else pending += price;
+  });
+
+  document.getElementById('mCount').textContent = manual.length;
+  document.getElementById('manualBadge').textContent = manual.length + ' bookings';
+  document.getElementById('mValue').textContent = formatCurrency(value);
+  document.getElementById('mCollected').textContent = formatCurrency(collected);
+  document.getElementById('mPending').textContent = formatCurrency(pending);
+
+  const srcLabel = { assisted_call: 'Phone call', whatsapp: 'WhatsApp', admin: 'Admin / walk-in' };
+
+  document.getElementById('manualRows').innerHTML = manual.length
+    ? manual.slice(0, 25).map(j => {
+        const reg = (technicians || []).find(t =>
+          String(t.id) === String(j.tech_id || j.technician_id || j.assigned_to));
+        const bd = readBillData(j);
+        const techName = reg?.name || reg?.full_name || bd?.tech?.name || '—';
+        const techId = bd?.tech?.tech_id ? ' · ' + escHtml(bd.tech.tech_id) : '';
+        const price = getJobPrice(j);
+        const pay = String(j.payment_status || 'pending').toLowerCase();
+        const paid = ['paid', 'cash', 'upi'].includes(pay);
+        return `
+          <tr class="border-b border-black/5">
+            <td class="py-3 pr-3"><div class="font-bold text-[#5D5646]">${escHtml(j.customer_name || 'Customer')}</div><div class="text-xs text-black/40">${escHtml(j.phone || '')}</div></td>
+            <td class="py-3 pr-3">${escHtml(j.category || j.service || '—')}</td>
+            <td class="py-3 pr-3">${escHtml(techName)}<span class="text-xs text-black/40">${techId}</span></td>
+            <td class="py-3 pr-3 text-xs">${escHtml(srcLabel[j.booking_source] || j.booking_source)}</td>
+            <td class="py-3 pr-3 text-xs">${escHtml(String(j.status || 'pending').replace('_', ' '))}</td>
+            <td class="py-3 pr-3"><span class="text-[10px] font-bold px-2 py-1 rounded-full ${paid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${paid ? 'PAID · ' + escHtml(pay.toUpperCase()) : 'PENDING'}</span></td>
+            <td class="py-3 text-right font-extrabold text-[#5D5646]">${price ? formatCurrency(price) : '—'}</td>
+          </tr>`;
+      }).join('')
+    : '<tr><td colspan="7" class="py-6 text-center text-black/40">No manual bookings yet.</td></tr>';
+}
+
 // ---------- Main analytics load ----------
 
 async function loadAnalytics() {
@@ -641,7 +757,7 @@ async function loadAnalytics() {
   const COMMISSION = 0.157;
 
   function getServicePrice(job) {
-    return Number(job.discounted_price || job.original_price || job.price || 0);
+    return getJobPrice(job);
   }
 
   const statusCount = {
@@ -879,8 +995,12 @@ async function loadAnalytics() {
     }
   });
 
-  // Update recent activity
-  const recentJobs = jobs.slice(0, 5);
+  renderManualBookings(jobs, technicians);
+
+  // Update recent activity (newest first)
+  const recentJobs = [...jobs]
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 5);
   let activityHtml = '<div class="space-y-3">';
   
   recentJobs.forEach(job => {
@@ -898,13 +1018,14 @@ async function loadAnalytics() {
         <div class="flex items-center gap-3">
           <div class="w-2 h-2 rounded-full ${statusColor.split(' ')[0]}"></div>
           <div>
-            <p class="text-sm font-bold text-[#5D5646]">${job.category || 'Service'}</p>
+            <p class="text-sm font-bold text-[#5D5646]">${job.category || 'Service'}${isManualJob(job) ? ' <span class="text-[9px] px-2 py-0.5 rounded-full bg-[#A07D54]/15 text-[#A07D54] font-bold align-middle">MANUAL</span>' : ''}</p>
             <p class="text-xs text-black/40">${job.location || 'Location not specified'}</p>
           </div>
         </div>
         <div class="text-right">
           <span class="text-xs px-2 py-1 rounded-full ${statusColor} font-bold">${job.status.replace('_', ' ')}</span>
-          <p class="text-xs text-black/40 mt-1">${formatDate(job.created_at)}</p>
+          <p class="text-xs font-bold text-[#5D5646] mt-1">${getJobPrice(job) ? formatCurrency(getJobPrice(job)) : ''}</p>
+          <p class="text-xs text-black/40">${formatDate(job.created_at)}</p>
         </div>
       </div>
     `;
