@@ -753,9 +753,9 @@ function review() {
     if ($('reviewTech')) {
 
         $('reviewTech').textContent =
-            t?.name ||
-            t?.full_name ||
-            'Normal dispatch';
+            ($('manualTechToggle')?.checked && val('mtName'))
+                ? val('mtName') + ' (manual)'
+                : (t?.name || t?.full_name || 'Normal dispatch');
     }
 
     if ($('reviewLocation')) {
@@ -835,8 +835,17 @@ async function createJob(e) {
         '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Creating…';
 
 
+    const manualTech =
+        $('manualTechToggle')?.checked
+            ? {
+                name: val('mtName'),
+                phone: val('mtPhone').replace(/[^\d+]/g, ''),
+                tech_id: val('mtId')
+              }
+            : null;
+
     const tech =
-        val('technician');
+        manualTech ? '' : val('technician');
 
 
     /*
@@ -872,7 +881,7 @@ async function createJob(e) {
         val('location'),
 
     status:
-        tech
+        (tech || manualTech)
             ? 'assigned'
             : 'pending',
 
@@ -1031,6 +1040,10 @@ async function createJob(e) {
         'Assisted booking created successfully'
     );
 
+    if (manualTech && data?.id) {
+        await persistBillData(data.id, { tech: manualTech });
+    }
+
 
     /*
        Reset customer selection.
@@ -1044,6 +1057,8 @@ async function createJob(e) {
     */
 
     $('assistForm').reset();
+
+    $('manualTechBox')?.classList.add('hidden');
 
     if ($('customerHint')) {
         $('customerHint').textContent = '';
@@ -1501,6 +1516,14 @@ function openJob(id) {
 
             </button>
 
+            <button
+                id="openBill"
+                class="btn-secondary w-full"
+            >
+                <i class="fa-solid fa-file-invoice mr-2"></i>
+                Generate bill for customer
+            </button>
+
         </div>
     `;
 
@@ -1563,6 +1586,9 @@ function openJob(id) {
 
     $('saveJob').onclick =
         () => saveJob(j.id);
+
+    $('openBill').onclick =
+        () => openBill(j.id);
 
 
     $('jobDrawer').classList.remove(
@@ -1737,6 +1763,460 @@ async function saveJob(id) {
 }
 
 
+
+/* =========================================================
+   BILL (manual technician + manual line items)
+   Saved in jobs.bill_data (jsonb) - falls back to this
+   browser's localStorage if the column does not exist.
+   ========================================================= */
+
+let bill = null;
+
+const billKey = id => 'fz_bill_' + id;
+
+function readBillData(j) {
+
+    let d = j.bill_data;
+
+    if (typeof d === 'string') {
+        try { d = JSON.parse(d); } catch (e) { d = null; }
+    }
+
+    if (!d) {
+        try {
+            d = JSON.parse(localStorage.getItem(billKey(j.id)) || 'null');
+        } catch (e) { d = null; }
+    }
+
+    return d;
+}
+
+async function persistBillData(id, data) {
+
+    try {
+        const old = JSON.parse(localStorage.getItem(billKey(id)) || 'null') || {};
+        localStorage.setItem(billKey(id), JSON.stringify({ ...old, ...data }));
+    } catch (e) {}
+
+    const { error } = await sb
+        .from('jobs')
+        .update({ bill_data: data })
+        .eq('id', id);
+
+    return !error;
+}
+
+function numToWords(num) {
+
+    num = Math.round(Math.max(0, num || 0));
+
+    if (num === 0) return 'Zero';
+
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+        'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    const two = n => n < 20 ? ones[n] : tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+
+    const three = n => n < 100 ? two(n) : ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + two(n % 100) : '');
+
+    let r = '';
+
+    const cr = Math.floor(num / 10000000); num %= 10000000;
+    const lk = Math.floor(num / 100000);   num %= 100000;
+    const th = Math.floor(num / 1000);     num %= 1000;
+
+    if (cr) r += three(cr) + ' Crore ';
+    if (lk) r += three(lk) + ' Lakh ';
+    if (th) r += three(th) + ' Thousand ';
+    if (num) r += three(num);
+
+    return r.trim();
+}
+
+function billTotals() {
+
+    const subtotal = bill.items.reduce((a, i) => a + (Number(i.price) || 0), 0);
+    const discount = Number(bill.discount) || 0;
+    const fee = Number(bill.platformFee) || 0;
+    const total = Math.max(0, subtotal - discount) + fee;
+
+    return { subtotal, discount, fee, total };
+}
+
+function openBill(id) {
+
+    const j = jobs.find(x => String(x.id) === String(id));
+
+    if (!j) return;
+
+    const saved = readBillData(j) || {};
+
+    const regTech = techs.find(t =>
+        String(t.id) === String(j.tech_id || j.technician_id || j.assigned_to));
+
+    const amount = Number(
+        j.final_amount || j.customer_price || j.payable_amount || j.amount || 0);
+
+    const pay = String(j.payment_status || 'pending').toLowerCase();
+
+    bill = {
+        job: j,
+
+        tech: saved.tech || {
+            name: regTech?.name || regTech?.full_name || '',
+            phone: regTech?.phone || '',
+            tech_id: regTech?.tech_id || ''
+        },
+
+        items: saved.items?.length
+            ? saved.items
+            : [{
+                name: j.category || 'Service',
+                desc: j.issue || '',
+                price: amount || ''
+            }],
+
+        discount: saved.discount ?? 0,
+        platformFee: saved.platformFee ?? 0,
+        payment: saved.payment || (pay === 'pending' ? 'pending' : pay),
+        ref: saved.ref || j.payment_reference || ''
+    };
+
+    renderBillEditor();
+    renderInvoice();
+
+    $('billModal').classList.remove('hidden');
+}
+
+function renderBillEditor() {
+
+    const b = bill;
+
+    $('billEditor').innerHTML = `
+        <div>
+            <p class="label">Technician (manual)</p>
+            <div class="grid grid-cols-2 gap-2">
+                <input data-t="name" class="field" placeholder="Name *" value="${esc(b.tech.name)}">
+                <input data-t="phone" class="field" placeholder="Phone" value="${esc(b.tech.phone)}">
+                <input data-t="tech_id" class="field col-span-2" placeholder="Technician ID" value="${esc(b.tech.tech_id)}">
+            </div>
+        </div>
+
+        <div>
+            <div class="flex items-center justify-between mb-2">
+                <p class="label !mb-0">Bill items</p>
+                <button id="billAddItem" type="button" class="text-xs font-bold text-brand-gold"><i class="fa-solid fa-plus mr-1"></i>Add item</button>
+            </div>
+            <div id="billItems" class="space-y-2"></div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+            <div><label class="label">Discount (₹)</label><input data-f="discount" type="number" min="0" class="field" value="${esc(b.discount)}"></div>
+            <div><label class="label">Platform fee (₹)</label><input data-f="platformFee" type="number" min="0" class="field" value="${esc(b.platformFee)}"></div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+            <div>
+                <label class="label">Payment</label>
+                <select data-f="payment" class="field">
+                    <option value="pending">Pending</option>
+                    <option value="cash">Paid - Cash</option>
+                    <option value="upi">Paid - UPI / QR</option>
+                    <option value="paid">Paid - Other</option>
+                </select>
+            </div>
+            <div><label class="label">Reference</label><input data-f="ref" class="field" placeholder="UTR / receipt no." value="${esc(b.ref)}"></div>
+        </div>
+
+        <button id="billSave" type="button" class="btn-primary w-full"><i class="fa-solid fa-floppy-disk mr-2"></i>Save bill to job</button>
+    `;
+
+    $('billEditor').querySelector('[data-f="payment"]').value = b.payment;
+
+    renderBillItems();
+}
+
+function renderBillItems() {
+
+    $('billItems').innerHTML = bill.items.map((it, i) => `
+        <div class="rounded-xl border border-brand-cream p-2 space-y-2">
+            <div class="flex gap-2">
+                <input data-i="${i}" data-k="name" class="field" placeholder="Item / service" value="${esc(it.name)}">
+                <input data-i="${i}" data-k="price" type="number" min="0" step="0.01" class="field !w-28" placeholder="₹" value="${esc(it.price)}">
+                <button type="button" data-del="${i}" class="text-brand-red px-1" title="Remove"><i class="fa-solid fa-trash"></i></button>
+            </div>
+            <input data-i="${i}" data-k="desc" class="field" placeholder="Description (optional)" value="${esc(it.desc)}">
+        </div>
+    `).join('');
+}
+
+function renderInvoice() {
+
+    const b = bill;
+    const j = b.job;
+    const t = billTotals();
+    const paid = b.payment !== 'pending';
+    const payLabel = { cash: 'Cash', upi: 'UPI / QR', paid: 'Online' }[b.payment] || '';
+
+    const rows = b.items
+        .filter(i => i.name || Number(i.price))
+        .map((i, idx) => `
+            <tr style="border-bottom:1px solid #f1f1f1;vertical-align:top">
+                <td style="padding:10px 4px 10px 0;font-size:12px;color:#9ca3af;font-family:monospace">${idx + 1}</td>
+                <td style="padding:10px 8px 10px 0">
+                    <div style="font-weight:700;font-size:14px;color:#4D4C4B">${esc(i.name)}</div>
+                    ${i.desc ? `<div style="font-size:10px;color:#9ca3af;margin-top:2px">${esc(i.desc)}</div>` : ''}
+                </td>
+                <td style="padding:10px 0;text-align:right;font-family:monospace;font-weight:700;font-size:14px;white-space:nowrap">₹${(Number(i.price) || 0).toFixed(2)}</td>
+            </tr>`).join('');
+
+    const techId = b.tech.tech_id || '';
+
+    $('invoiceContent').innerHTML = `
+        <div style="display:flex;justify-content:space-between;gap:12px;padding-bottom:14px;margin-bottom:14px;border-bottom:2px solid #4D4C4B">
+            <div>
+                <div style="font-family:serif;font-style:italic;font-size:26px;font-weight:800;color:#4D4C4B;line-height:1">FixZenix</div>
+                <div style="font-size:10px;color:#6b7280;margin-top:4px">Premium Home Services</div>
+                <div style="font-size:9px;color:#9ca3af;margin-top:8px;line-height:1.5">FixZenix Services<br>Amravati, Maharashtra, India<br>help@fixzenix.in</div>
+            </div>
+            <div style="text-align:right">
+                <span style="display:inline-block;background:#4D4C4B;color:#fff;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:4px">Service Invoice</span>
+                <div style="font-size:9px;color:#9ca3af;margin-top:8px">Invoice No.</div>
+                <div style="font-size:12px;font-weight:800;font-family:monospace">FXN-${esc(String(j.id).slice(0, 8).toUpperCase())}</div>
+                <div style="font-size:9px;color:#9ca3af;margin-top:4px">Invoice Date</div>
+                <div style="font-size:12px;font-weight:800;font-family:monospace">${new Date().toLocaleDateString('en-IN')}</div>
+            </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;color:#4b5563;margin-bottom:12px">
+            <div>
+                <div style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Billed To</div>
+                <div style="font-weight:700;font-size:14px;color:#4D4C4B">${esc(j.customer_name || 'Customer')}</div>
+                <div>${esc(j.phone || '')}</div>
+                <div style="color:#9ca3af">${esc(j.location || j.address || '')}</div>
+            </div>
+            <div style="text-align:right">
+                <div style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Service Provided By</div>
+                <div style="font-weight:700;font-size:14px;color:#4D4C4B">${esc(b.tech.name || 'FixZen Expert')}</div>
+                ${techId ? `<div style="display:inline-block;margin-top:3px;padding:2px 8px;border-radius:99px;border:1px solid rgba(160,125,84,.3);background:rgba(160,125,84,.1);font-size:10px;font-family:monospace;font-weight:700;color:#4D4C4B">ID: ${esc(techId)}</div>` : ''}
+                ${b.tech.phone ? `<div style="font-size:11px;margin-top:2px">${esc(b.tech.phone)}</div>` : ''}
+                <div style="color:#9ca3af">${esc(j.category || 'Home Service')}</div>
+            </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border:1px solid #f1f1f1;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:10px">
+            <span style="color:#6b7280">Job Ref: <b style="font-family:monospace;color:#374151">${esc(String(j.id).slice(0, 8).toUpperCase())}</b></span>
+            <span style="color:#16a34a;font-weight:700">${paid ? '✔ Paid' : 'Payment Due'}</span>
+        </div>
+
+        <table style="width:100%;border-collapse:collapse;margin-bottom:4px">
+            <thead>
+                <tr style="text-align:left;font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #e5e7eb">
+                    <th style="padding-bottom:8px;width:24px">#</th>
+                    <th style="padding-bottom:8px">Description</th>
+                    <th style="padding-bottom:8px;text-align:right">Amount</th>
+                </tr>
+            </thead>
+            <tbody>${rows || '<tr><td colspan="3" style="padding:14px 0;font-size:12px;color:#9ca3af">No items added</td></tr>'}</tbody>
+        </table>
+
+        <div style="border-top:2px dashed #d1d5db;padding-top:10px;margin-bottom:14px;font-size:13px;color:#4b5563">
+            <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Subtotal</span><span style="font-family:monospace">₹${t.subtotal.toFixed(2)}</span></div>
+            ${t.fee > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Platform Fee</span><span style="font-family:monospace">₹${t.fee.toFixed(2)}</span></div>` : ''}
+            ${t.discount > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:5px;color:#10B981"><span>Discount</span><span style="font-family:monospace;font-weight:700">−₹${t.discount.toFixed(2)}</span></div>` : ''}
+            <div style="display:flex;justify-content:space-between;border-top:1px solid #e5e7eb;padding-top:8px;margin-top:4px;font-weight:900;font-size:16px;color:#4D4C4B"><span>Grand Total</span><span>₹${t.total.toFixed(2)}</span></div>
+        </div>
+
+        <div style="background:${paid ? '#f0fdf4' : '#fffbeb'};border:1px solid ${paid ? '#dcfce7' : '#fde68a'};border-radius:12px;padding:10px 12px;margin-bottom:14px;font-size:12px">
+            <div style="font-size:9px;font-weight:700;color:${paid ? '#15803d' : '#b45309'};text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Payment Summary</div>
+            <div style="display:flex;justify-content:space-between;font-weight:900;font-size:14px;color:${paid ? '#15803d' : '#b45309'}">
+                <span>${paid ? 'Total Paid via ' + payLabel : 'Amount Due'}</span><span>₹${t.total.toFixed(2)}</span>
+            </div>
+            ${b.ref ? `<div style="font-size:10px;color:#6b7280;margin-top:4px">Ref: ${esc(b.ref)}</div>` : ''}
+        </div>
+
+        <div style="font-size:10px;color:#9ca3af;margin-bottom:14px"><b style="color:#6b7280">Amount in Words:</b> ${esc(numToWords(t.total))} Rupees Only</div>
+
+        <div style="border-top:1px solid #f1f1f1;padding-top:12px;font-size:9px;color:#9ca3af;line-height:1.6">
+            <b style="color:#6b7280">Terms &amp; Notes</b><br>
+            • Prices are inclusive of all applicable taxes.<br>
+            • System-generated invoice — no signature required.<br>
+            • For service queries, contact support within 48 hours.
+        </div>
+    `;
+}
+
+function billFileName() {
+    return `FixZen_Invoice_${String(bill.job.id).slice(0, 6).toUpperCase()}.pdf`;
+}
+
+function billPdfOpts() {
+    return {
+        margin: 0.5,
+        filename: billFileName(),
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+}
+
+function billMessage() {
+
+    const t = billTotals();
+    const paid = bill.payment !== 'pending';
+
+    return `Hello ${bill.job.customer_name || ''}, thank you for choosing FixZenix.\n` +
+        `Invoice FXN-${String(bill.job.id).slice(0, 8).toUpperCase()}\n` +
+        `Service: ${bill.job.category || 'Home Service'}\n` +
+        (bill.tech.name ? `Technician: ${bill.tech.name}\n` : '') +
+        `Total: ${inr(t.total)} (${paid ? 'Paid' : 'Payment due'})`;
+}
+
+async function saveBill(silent) {
+
+    const t = billTotals();
+
+    const data = {
+        tech: bill.tech,
+        items: bill.items,
+        discount: bill.discount,
+        platformFee: bill.platformFee,
+        payment: bill.payment,
+        ref: bill.ref
+    };
+
+    const okData = await persistBillData(bill.job.id, data);
+
+    const patch = {
+        final_amount: t.total || null,
+        payment_status: bill.payment,
+        payment_reference: bill.ref || null
+    };
+
+    let { error } = await sb.from('jobs').update(patch).eq('id', bill.job.id);
+
+    if (error && String(error.message).includes('final_amount')) {
+        delete patch.final_amount;
+        delete patch.payment_reference;
+        ({ error } = await sb.from('jobs').update(patch).eq('id', bill.job.id));
+    }
+
+    if (!silent) {
+        if (error) toast('Could not save bill: ' + error.message, false);
+        else if (!okData) toast('Bill saved on this device only - run: alter table jobs add column bill_data jsonb;', false);
+        else toast('Bill saved to job');
+    }
+
+    if (!error) await loadJobs();
+}
+
+async function downloadBill() {
+
+    await html2pdf().set(billPdfOpts()).from($('invoiceContent')).save();
+}
+
+async function shareBill() {
+
+    try {
+
+        const blob = await html2pdf()
+            .set(billPdfOpts())
+            .from($('invoiceContent'))
+            .outputPdf('blob');
+
+        const file = new File([blob], billFileName(), { type: 'application/pdf' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: 'FixZenix Invoice', text: billMessage() });
+            return;
+        }
+
+        await downloadBill();
+
+        toast('PDF downloaded - attach it in WhatsApp / email');
+
+    } catch (e) {
+
+        if (e?.name !== 'AbortError') toast('Could not share: ' + e.message, false);
+    }
+}
+
+function whatsappBill() {
+
+    let p = String(bill.job.phone || '').replace(/\D/g, '');
+
+    if (p.length === 10) p = '91' + p;
+
+    window.open(
+        `https://wa.me/${p}?text=${encodeURIComponent(billMessage())}`,
+        '_blank'
+    );
+
+    toast('Attach the downloaded PDF in the WhatsApp chat');
+}
+
+function closeBill() {
+    $('billModal').classList.add('hidden');
+    bill = null;
+}
+
+if ($('billEditor')) {
+
+    $('billEditor').addEventListener('input', e => {
+
+        if (!bill) return;
+
+        const el = e.target;
+
+        if (el.dataset.t) bill.tech[el.dataset.t] = el.value;
+
+        else if (el.dataset.i !== undefined) bill.items[el.dataset.i][el.dataset.k] = el.value;
+
+        else if (el.dataset.f) bill[el.dataset.f] = el.value;
+
+        renderInvoice();
+    });
+
+    $('billEditor').addEventListener('change', e => {
+
+        if (bill && e.target.dataset.f === 'payment') {
+            bill.payment = e.target.value;
+            renderInvoice();
+        }
+    });
+
+    $('billEditor').addEventListener('click', e => {
+
+        if (!bill) return;
+
+        if (e.target.closest('#billAddItem')) {
+            bill.items.push({ name: '', desc: '', price: '' });
+            renderBillItems();
+            renderInvoice();
+            return;
+        }
+
+        const del = e.target.closest('[data-del]');
+
+        if (del) {
+            bill.items.splice(Number(del.dataset.del), 1);
+            renderBillItems();
+            renderInvoice();
+            return;
+        }
+
+        if (e.target.closest('#billSave')) saveBill();
+    });
+}
+
+if ($('billPdf')) $('billPdf').onclick = downloadBill;
+if ($('billShare')) $('billShare').onclick = async () => { await saveBill(true); shareBill(); };
+if ($('billWa')) $('billWa').onclick = async () => { await saveBill(true); await downloadBill(); whatsappBill(); };
+if ($('billClose')) $('billClose').onclick = closeBill;
+if ($('billBg')) $('billBg').onclick = closeBill;
+
 /* =========================================================
    CLOSE DRAWER
    ========================================================= */
@@ -1827,6 +2307,22 @@ async function startApp() {
    FORM EVENTS
    ========================================================= */
 
+if ($('manualTechToggle')) {
+
+    $('manualTechToggle').onchange =
+        () => {
+
+            $('manualTechBox')
+                .classList
+                .toggle('hidden', !$('manualTechToggle').checked);
+
+            if ($('manualTechToggle').checked && $('technician')) {
+                $('technician').value = '';
+            }
+        };
+}
+
+
 if ($('toStep2')) {
 
     $('toStep2').onclick =
@@ -1857,6 +2353,14 @@ if ($('toStep3')) {
 
                 return toast(
                     'Customer confirmation is required',
+                    false
+                );
+            }
+
+            if ($('manualTechToggle')?.checked &&
+                (!val('mtName') || !val('mtPhone'))) {
+                return toast(
+                    'Enter technician name and phone, or untick manual entry',
                     false
                 );
             }
