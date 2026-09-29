@@ -333,7 +333,7 @@ input.pl-input {
     </button>
   </div>
   <p class="text-xs text-black/40 mb-4">
-    Revenue and Gross Profit are computed live from completed jobs. Operating Expenses, Depreciation &amp; Amortization, Interest and Tax are entered manually below (saved to Supabase, synced across every admin session in real time) since they aren't tracked in your jobs data.
+    Revenue and Gross Profit are computed live from completed jobs and paid manual bookings. Operating Expenses, Depreciation &amp; Amortization, Interest and Tax are entered manually below (saved to Supabase, synced across every admin session in real time) since they aren't tracked in your jobs data.
   </p>
 
   <!-- Editable inputs (hidden by default) -->
@@ -665,6 +665,18 @@ function isManualJob(job) {
   return MANUAL_SOURCES.includes(String(job.booking_source || ''));
 }
 
+function isPaidJob(job) {
+  return ['paid', 'cash', 'upi'].includes(String(job.payment_status || '').toLowerCase());
+}
+
+// A job earns revenue when completed, or when it is a manual booking
+// that has been paid and not cancelled.
+function countsAsRevenue(job) {
+  const st = String(job.status || '').toLowerCase();
+  if (st === 'cancelled') return false;
+  return st === 'completed' || (isManualJob(job) && isPaidJob(job));
+}
+
 function escHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -753,6 +765,7 @@ async function loadAnalytics() {
   let completedTimes = [];
   let responseTimes = [];
   let completedJobs = 0;
+  let revenueJobs = 0;      // completed jobs + paid manual bookings
 
   const COMMISSION = 0.157;
 
@@ -799,15 +812,25 @@ async function loadAnalytics() {
 
     // Last month comparison
     if (createdAt > oneMonthAgo) {
-      if (job.status === "completed") {
+      if (countsAsRevenue(job)) {
         revenueLastMonth += getServicePrice(job);
       }
       jobsLastMonth++;
     }
 
+    // Manual bookings that are already paid count as revenue even before
+    // the job is marked completed (completed ones are handled below).
+    if (job.status !== "completed" && countsAsRevenue(job)) {
+      const mPrice = getServicePrice(job);
+      totalRevenue += mPrice;
+      totalProfit += Math.round(mPrice * COMMISSION);
+      revenueJobs++;
+    }
+
     // Completed jobs analysis
     if (job.status === "completed") {
       completedJobs++;
+      revenueJobs++;
       
       const price = getServicePrice(job);
       const techFee = Math.round(price * (1 - COMMISSION));
@@ -852,7 +875,7 @@ async function loadAnalytics() {
     avgResponse = avg.toFixed(1) + " hrs";
   }
 
-  let avgJobValue = completedJobs > 0 ? totalRevenue / completedJobs : 0;
+  let avgJobValue = revenueJobs > 0 ? totalRevenue / revenueJobs : 0;
   let totalTechPayouts = totalRevenue - totalProfit;
   
   let completionRate = jobs.length > 0 ? ((completedJobs / jobs.length) * 100).toFixed(1) + '%' : '0%';
